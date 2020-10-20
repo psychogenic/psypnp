@@ -4,6 +4,7 @@ Created on Oct 15, 2020
 globals... this is a way for modules to access the "global"
 machine/config/scripting/gui objects.
 
+
 Adding:
 
 ############## BOILER PLATE #################
@@ -49,13 +50,12 @@ _gScripting = None
 _gGUI = None 
 _parentDir = None 
 def setup(machine, config, scripting, gui):
-    global _gConfig, _gMachine, _gScripting, _gGUI, _parentDir
+    global _gConfig, _gMachine, _gScripting, _gGUI
     _gMachine = machine 
     _gConfig = config 
     _gScripting = scripting
     _gGUI = gui 
     
-    _parentDir =  os.path.join(scripting.getScriptsDirectory().toString(), '..')
     
 def doSetupError():
     optPane.showMessageDialog(None,"psypnp.globals.setup() never called")
@@ -63,15 +63,29 @@ def doSetupError():
 
 
 def fullpathFromRelative(relpath):
-    if _parentDir is None:
-        return relpath 
-    
-    return os.path.join(_parentDir, relpath)
+    bdir = basedir()
+    retPath = os.path.join(bdir, relpath)
+    return retPath
     
 
 
 def basedir():
     global _parentDir
+
+    if _parentDir is not None:
+        return _parentDir
+
+    # never set...
+    spting = scripting()
+    if spting is not None:
+        # all is well and as expected, base our path on scripting module
+        bdir = spting.getScriptsDirectory().toString()
+    else:
+        # weirdness... may occur when running test __main__ code etc
+        bdir = os.path.join(os.path.dirname(__file__), '..')
+    # cache our parent dir
+    _parentDir =  os.path.join(bdir, '..')
+        
     return _parentDir
 
 def config(): 
