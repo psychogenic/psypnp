@@ -11,6 +11,23 @@ Part of the psypnp OpenPnP scripting modules project
 This is a system for easy storage and retrieval of keys and 
 dictionaries, on a per-script basis.
 
+Simplest method: NVStorage objects.
+
+
+ mystore = psypnp.nv.NVStorage('scriptname')
+ if mystore.some_value is None:
+     # never set
+     mystore.some_value = 42 # default, now stored forevers
+
+ if mystore.name == 'Bob':
+     # didn't even check if it exists, 
+     # it'll be None if it didn't
+     print("Hi, bob")
+
+
+Other more functiony functions provide for retreival with 
+defaults and such.
+
 A global pickle file holds everything, scripts usually give 
 themselves some relevant "parent key" (which maps to their 
 own dict())
@@ -39,8 +56,70 @@ from psypnp.ui import showError
 import psypnp.globals
 import psypnp.config.files
 
+
 PsyPersistentStorage = None
 PsyNVStoreFileName = None 
+
+class NVStorage:
+    '''
+        NVStorage utility class.
+        Just create with the parent key:
+        mydata = NVStorage('scriptmasterkey')
+        
+        mydata.whatever will be None if never set or
+        whatever you did set by doing:
+        
+         mydata.whatever = 'hohoho'
+        or 
+         mydata.whatever = 1.4141
+        etc.
+        
+        Special value:
+          mydata.autosave 
+        defaults to True and does the automagic saving.
+        
+        Setting to false is a good way to avoid 50 writes
+        when saving a lot of data, but you'll have to saveAll()
+        or set it back to True (and make some assignement) to 
+        preserve the mods made.
+        
+    '''
+    def __init__(self, storageKey, autosave=True):
+        self.__dict__['_key'] = storageKey 
+        self.__dict__['autosave'] = autosave 
+        
+    def load(self, name, defaultValue=None):
+        return get_subvalue(self._key, name, defaultValue)
+    
+    def save(self, name, val):
+        set_subvalue(self._key, name, val)
+        
+    def saveAll(self):
+        save_storage()
+        
+    def __getattr__(self, name):
+        if name in self.__dict__:
+            return self.__dict__[name]
+        
+        if name.find('__') == 0:
+            pDict = get(self.__dict__['_key'])
+            if pDict is not None:
+                if hasattr(pDict, name):
+                    return getattr(pDict, name)
+            
+            if hasattr(self.__dict__, name):
+                return getattr(self.__dict__, name)
+            return None 
+        
+        return get_subvalue(self.__dict__['_key'], name)
+    
+    def __setattr__(self, name, val):
+        if name == '_key' or name == 'autosave':
+            self.__dict__[name] = val 
+        else:
+            set_subvalue(self.__dict__['_key'], name, val, 
+                         self.__dict__['autosave'])
+        
 
 
 def getStorageFileName():
@@ -159,3 +238,8 @@ def save_storage(override=None):
         showError("Problem serializing data: %s" % str(ex))
         return
 
+if __name__ == "__main__":
+    import psypnp.repl
+    v = psypnp.repl.getStandardEnvVars()
+    v['t'] = NVStorage('testo2')
+    psypnp.repl.runInterpreter(v)
