@@ -15,7 +15,7 @@ except:
     # this is just for running outside of openpnp
     from psypnp.debug import stubOptPane as optPane 
 
-
+import psypnp.globals
 
 def showError(msg):
     print("ERROR: %s" % str(msg))
@@ -78,3 +78,16 @@ def getConfirmation(title, message, options=None, optDefault=None):
         return True
     
     return False
+
+
+
+def getSelectedBoards():
+    boardLocs = psypnp.globals.gui().jobTab.getSelections()
+    if not boardLocs or (not len(boardLocs)) or not boardLocs[0]:
+        return None
+    
+    boardsList = []
+    for bloc in boardLocs:
+        boardsList.append(bloc.board)
+
+    return boardsList
