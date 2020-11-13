@@ -3,6 +3,13 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# external libraries
+lib/pyparsing.py
+lib/svgwrite/*
+
+# BS Examples dir that won't die
+scripts/Examples/
+
 # C extensions
 *.so
 
@@ -15,6 +22,7 @@ downloads/
 eggs/
 .eggs/
 parts/
+*.class
 sdist/
 var/
 wheels/
