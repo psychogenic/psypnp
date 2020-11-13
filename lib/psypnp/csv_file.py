@@ -308,48 +308,58 @@ class BOMEntry:
     def __repr__(self):
         return '<BOMEntry %s >' % self.__string__()
         
+        
 
-class BOMParserKicad:
+class BOMParserColumnMap:
+    def __init__(self, quantity, package, value, references=None):
+        self.col_quantity = quantity
+        self.col_package = package
+        self.col_value = value 
+        self.col_references = references 
+        
+        v = [quantity, package, value]
+        if references is not None:
+            v.append(references)
+            
+        self.min_columns = sorted(v)[-1] + 1
+        
+        
+    def minimumNumColumns(self):
+        return self.min_columns
+    
+    def hasReferences(self):
+        return self.col_references is not None 
+    
+class BOMParserBase(object):
     ''' 
         Project BOM parser, kicad version.  Expects CSV of format:
         #Item, Qty, Reference(s), Value, LibPart, Footprint
     '''
-    def __init__(self, filepath, delimiter=',', 
+    def __init__(self, filepath, 
+                 convertersList,
+                 columnMap,
+                 delimiter=',', 
                  ignoreCommentedFirstLine=True):
+        
+        self.columnMap = columnMap
         self.csv = CSVFile(filepath, delimiter, ignoreCommentedFirstLine)
         
         self.success = self.csv.success
         self.entries = []
-        converters = [
-            None, 
-            self.csv.convertToInt,
-            None,
-            None,
-            None,
-            self.convertFootprint
-        ]
         if self.csv.success:
-            self.csv.processEachRow(self.parseBOMEntries, converters)   
+            self.csv.processEachRow(self.parseBOMEntries, convertersList)   
+            self.postProcessEntries()
+            
+    def postProcessEntries(self):
+        pass 
     
     def numEntries(self):
         return len(self.entries)
     
     
-    def convertFootprint(self, v):
-        if v is None or not len(v):
-            return ('DNP', 'DNP', False)
-        
-        comps = v.split(':')
-        if comps and len(comps):
-            if len(comps) == 2:
-                return (comps[0], comps[1], True)
-            return comps
-        return (v, v, False)
     
     def parseBOMEntries(self, anEntry):
-        #Item,Qty,Reference(s),Value,LibPart,Footprint
         bEntry = None
-        # print(str(anEntry))
         if anEntry:
             pkg = None
             if len(anEntry) >= 6:
@@ -357,18 +367,24 @@ class BOMParserKicad:
                 if len(pkg) == 3:
                     pkg = pkg[1]
                     
-            
-            if len(anEntry) >= 4:
+            if len(anEntry) >= self.columnMap.minimumNumColumns():
+                
                 bEntry = BOMEntry(
-                    anEntry[2], # references
-                    anEntry[1],# qty,
-                    pkg, # package 
-                    anEntry[3]# value
+                    anEntry[self.columnMap.col_references], # references
+                    anEntry[self.columnMap.col_quantity],# qty,
+                    anEntry[self.columnMap.col_package], # package 
+                    anEntry[self.columnMap.col_value]# value
                     
                     )
+            
         if bEntry is not None:
             self.entries.append(bEntry)
             
+            
+class BOMParserGeneric(BOMParserBase):
+    pass
+            
+
         
 class BOMCSV:
     ''' BOMCSV
@@ -402,6 +418,7 @@ class BOMCSV:
 
 if __name__ == "__main__":
     # debugging assist... just run this module on command line
+    from psypnp.project.bom_parsers import BOMParserKicad
     bom_csv = BOMCSV("/tmp/bom.csv", BOMParserKicad)
     package_csv = PackageDescCSV("../data/package_desc.csv")
     feed_csv = FeedDescCSV('../data/feed_desc.csv')
