@@ -38,6 +38,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 #from __future__ import absolute_import
 import re
 import psypnp
+import psypnp.ui
 
 
 
@@ -45,14 +46,10 @@ def refresh_checkboxen():
     gui.jobTab.getJobPlacementsPanel().repaint()
 
 def get_selected_boards():
-    boardLocs = gui.jobTab.getSelections()
-    if not boardLocs or (not len(boardLocs)) or not boardLocs[0]:
-        psypnp.showError("Select at least one board")
+    boardsList = psypnp.ui.getSelectedBoards()
+    if boardsList is None or not len(boardsList):
+        psypnp.ui.showError("Select at least one board")
         return None
-    boardsList = []
-    for bloc in boardLocs:
-        boardsList.append(bloc.board)
-
     return boardsList
 
 
@@ -68,7 +65,7 @@ def use_disable_list():
             placementsHash[pid] = aplacement
             if not aplacement.enabled:
                 curDisabledList.append(pid)
-    itemsToDisable = psypnp.getUserInput('List of items to disable', ','.join(curDisabledList))
+    itemsToDisable = psypnp.ui.getUserInput('List of items to disable', ','.join(curDisabledList))
     if itemsToDisable is None or not len(itemsToDisable):
         return
 
@@ -91,7 +88,7 @@ def use_disable_list():
     errStr = ''
     if len(notFoundList):
         errStr = '  Not Found: %s' % (','.notFoundList)
-    psypnp.showMessage("Disabled %i %s" % (numDisabled, errStr))
+    psypnp.ui.showMessage("Disabled %i %s" % (numDisabled, errStr))
     return
 
 
@@ -161,7 +158,7 @@ def toggle_all():
 
 def select_action_and_perform():
 
-    val = psypnp.getOption("Enable/Disable", 
+    val = psypnp.ui.getOption("Enable/Disable", 
                 "Change component placement 'enable' to",
                 ['Toggle', 'Disable List', 'Disable', 'Enable'])
 

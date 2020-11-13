@@ -26,7 +26,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 ############## /BOILER PLATE #################
 
 import psypnp
-
+import psypnp.util
 
 def main():
     clone_part_bottom_pipeline()
@@ -66,7 +66,7 @@ def clone_part_bottom_pipeline():
         return
 
     print("Using part %s as source for bottom vision pipeline" % sourcePart.getId())
-    psypnp.clone_alignment_pipeline(machine, sourcePart, partsWithThisName)
+    psypnp.util.clone_alignment_pipeline(machine, sourcePart, partsWithThisName)
     print("ALL DONE")
     gui.getPartsTab().repaint()
 

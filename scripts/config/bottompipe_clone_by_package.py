@@ -29,6 +29,7 @@ import org.openpnp.machine.reference.vision.ReferenceBottomVision as RefBotVisio
 
 
 import psypnp
+import psypnp.util
 
 
 def main():
@@ -65,7 +66,7 @@ def clone_part_bottom_pipeline():
         psypnp.showError("Don't seem to be many targets with this package around")
         return
 
-    psypnp.clone_alignment_pipeline(machine, sourcePart, partsWithThisPackage)
+    psypnp.util.clone_alignment_pipeline(machine, sourcePart, partsWithThisPackage)
     print("ALL DONE")
     gui.getPartsTab().repaint()
 

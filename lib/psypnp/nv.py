@@ -25,7 +25,7 @@ Simplest method: NVStorage objects.
      print("Hi, bob")
 
 
-Other more functiony functions provide for retreival with 
+Other more functiony functions provide for retrieval with 
 defaults and such.
 
 A global pickle file holds everything, scripts usually give 

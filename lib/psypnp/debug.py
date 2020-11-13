@@ -68,6 +68,7 @@ class DebugOut:
         self.outbuf = ''
         self.enabled = True # disable actual print() calls with this
         self.forceAutoFlush = False # useful when crashing, to output all buffer() immediately
+        self.is_verbose = False
         self.crumbs = dict()
         
     def crumb(self, name):
@@ -95,6 +96,10 @@ class DebugOut:
             
         if self.forceAutoFlush:
             self.flush()
+            
+    def verbose(self, msg, autoEnter=True):
+        if self.is_verbose:
+            self.buffer(msg, autoEnter)
             
     def flush(self, extrastr=None):
         if extrastr is not None:

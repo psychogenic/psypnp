@@ -202,16 +202,16 @@ def check_feeder_heights():
     feedPickLoc = nxtFeed.getPickLocation()
     safeMoveLocation = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 0, 45);
     machine.defaultHead.defaultNozzle.moveTo(safeMoveLocation)
-    print("WOULD MOVE FIRST TO: %s" % str(safeMoveLocation))
+    #print("WOULD MOVE FIRST TO: %s" % str(safeMoveLocation))
 
     locRealDepth = Location(feedPickLoc.getUnits(), 0, 0, feedPickLoc.getZ(), 0)
     locSafeDepth = locRealDepth.add(Location(LengthUnit.Millimeters, 0, 0, 6, 0))
     locDownFirstStage = safeMoveLocation.add(locSafeDepth)
     machine.defaultHead.defaultNozzle.moveTo(locDownFirstStage)
-    print("WOULD THEN MOVE TO: %s" % str(locDownFirstStage))
+    #print("WOULD THEN MOVE TO: %s" % str(locDownFirstStage))
     curSpeed = machine.getSpeed()
     machine.setSpeed(0.25)
-    print("WOULD FINALLY MOVE TO: %s" % str(feedPickLoc))
+    #print("WOULD FINALLY MOVE TO: %s" % str(feedPickLoc))
     machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
     machine.setSpeed(curSpeed)
 
@@ -244,7 +244,7 @@ def check_feeder_heights():
             # finally, add the feederHeight we determined
             newZLoc = Location(feederHeight.getUnits(), 0, 0, nozLoc.getZ(), 0)
             newHole = newHole.add(newZLoc)
-            print("WILL Set ref hole for %s to %s" % (feederPart.getName(), str(newHole)))
+            #print("WILL Set ref hole for %s to %s" % (feederPart.getName(), str(newHole)))
             nxtFeed.setReferenceHoleLocation(newHole)
             machine.defaultHead.moveToSafeZ()
             increment_idx_counter(next_feeder_index)

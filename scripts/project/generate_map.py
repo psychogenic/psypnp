@@ -47,9 +47,9 @@ except:
     
 
 StorageParentName = 'fdrmap'
-IncludeFeedNameInDesc = False
+IncludeFeedNameInDesc = True
 ImageScaleFactor = 5
-ImageMargins = 1100
+ImageMargins = 2000
 FontSize = 24
 IncludeDisabledOfSamePart = False
 FontStyle="font-family: Arial, Helvetica, sans-serif;"
