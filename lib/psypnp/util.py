@@ -42,13 +42,21 @@ def should_proceed_with_motion():
     
     return False
 
-
-def clone_alignment_pipeline(sourcePart, targets):
+def get_bottom_vision():
     partsAl = psypnp.globals.machine().getPartAlignments() # RefBotVision()
     if partsAl is None or not len(partsAl):
         # no bottom vision?
-        return
+        return None
     botVis = partsAl[0]
+    return botVis 
+
+
+def clone_alignment_pipeline(sourcePart, targets):
+    botVis = get_bottom_vision()
+    if botVis is None:
+        # todo: barf with error?
+        return 
+    
     sourcePartSettings = botVis.getPartSettings(sourcePart)
     sourcePartPipeline = sourcePartSettings.getPipeline()
 
