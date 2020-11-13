@@ -12,6 +12,10 @@ from psypnp.ui import showError
 import psypnp.globals 
 
 def parts_by_name(pname):
+    '''
+        parts_by_name(PARTNAME:str)
+        @return: a list of parts whos names contain the PARTNAME string.
+    '''
     matchingParts = []
     config = psypnp.globals.config()
     partByName = config.getPart(pname)
@@ -26,6 +30,10 @@ def parts_by_name(pname):
 
 
 def parts_by_package(package):
+    '''
+        parts_by_package(PACKAGEOBJ)
+        @return: a list of parts using package PACKAGEOBJ.
+    '''
     srcPackId = package.getId()
     matchingParts = []
     config = psypnp.globals.config()
@@ -37,6 +45,43 @@ def parts_by_package(package):
     return matchingParts
 
 
+def packages_by_name(pname):
+    '''
+        packages_by_name(PKGNAME:str)
+        @return: a list of package objects whos name (id) contains PKGNAME
+    '''
+    config = psypnp.globals.config()
+    matchingPackages = []
+    for apkg in config.getPackages():
+        pid = apkg.getId()
+        if pid and len(pid):
+            if pid.lower().find(pname) >= 0:
+                matchingPackages.append(apkg)
+    
+    return matchingPackages
+
+def parts_by_package_name(pkgname):
+    '''
+        parts_by_package_name(PKGNAME:str)
+        @return: a list of part objects who's package id contains PKGNAME
+    '''
+    matchingParts = []
+    matchingPkgs = packages_by_name(pkgname)
+    if not len(matchingPkgs):
+        return matchingParts
+    
+    # could just use a bunch of calls to parts_by_package
+    # but I just can't take the horrible inefficiency
+    pkgsOfInterest = dict()
+    for pkg in matchingPkgs:
+        pkgsOfInterest[pkg.getId()] = pkg
+    
+    for apart in psypnp.globals.config().getParts():
+        partPkg = apart.getPackage()
+        if partPkg is not None and partPkg.getId() in pkgsOfInterest:
+            matchingParts.append(apart)
+            
+    return matchingParts
 
 
 def get_next_feeder_index(startidx, onlyEnabled=True):
