@@ -31,8 +31,9 @@ from org.openpnp.model import Location, Length, LengthUnit
 
 import psypnp
 import psypnp.nv # non-volatile storage
+import psypnp.search
 
-
+MinSaneHeightAbs = 5.0
 
 StorageParentName = 'chkfeedht'
 
@@ -47,6 +48,10 @@ def main_selection():
         curIdx = 0
  
     nextFeeder = get_next_feeder_from(curIdx)
+    
+    if nextFeeder is None:
+        set_current_idx(0)
+        return False
 
     sel = psypnp.getOption("Check Feeder Height", "Check feeder for \n%s \n%s " % 
                 (nextFeeder.getName(), str(nextFeeder.getPart().getId())),
@@ -57,7 +62,7 @@ def main_selection():
         # hard abort
         return False
 
-    if sel == 0 and psypnp.should_proceed_with_motion(machine):
+    if sel == 0 and psypnp.should_proceed_with_motion():
         # do it
         return check_feeder_heights()
     if sel == 1: # skip it
@@ -89,7 +94,7 @@ def set_idx_by_part():
     # store it for next time
     psypnp.nv.set_subvalue(StorageParentName, 'partsrch', pname)
 
-    feedDeets = psypnp.feed_by_partname(pname)
+    feedDeets = psypnp.search.feed_by_partname(pname)
     if feedDeets is None or not feedDeets:
         return True
 
@@ -109,9 +114,11 @@ def set_idx_by_feedname():
         return False
     # store it for next time
     psypnp.nv.set_subvalue(StorageParentName, 'feedsrch', feedname)
-
-    feedDeets = psypnp.feed_by_name(feedname)
+    
+    print("Searching for feed '%s'" % feedname)
+    feedDeets = psypnp.search.feed_by_name(feedname)
     if feedDeets is not None and feedDeets:
+        print("Setting feed idx to %i" % feedDeets.index)
         set_current_idx(feedDeets.index)
     else:
         psypnp.showError("Couldn't locate a feed \nmatching '%s'" % feedname)
@@ -122,8 +129,14 @@ def set_idx_by_feedname():
 def set_current_idx(valToSet):
     psypnp.nv.set_subvalue(StorageParentName, 'curidx', valToSet)
 
+
 def increment_idx_counter(curIdx):
-    set_current_idx(get_next_feeder_index(curIdx + 1))
+    nxtIdx = get_next_feeder_index(curIdx + 1)
+    if nxtIdx is None:
+        print("Out of feeders")
+        set_current_idx(0)
+    
+    set_current_idx(nxtIdx)
 
 def get_current_idx():
     cur_feeder_index = psypnp.nv.get_subvalue(StorageParentName, 'curidx')
@@ -135,7 +148,7 @@ def get_current_idx():
 
 def get_next_feeder_index(startidx):
     nxtFeed = None
-    feederList = machine.getFeeders()
+    feederList = get_sorted_feeders_list()
     if feederList is None or not len(feederList):
         return 0
 
@@ -156,26 +169,34 @@ def get_next_feeder_index(startidx):
                 print("RETURNING IDX: %i" % next_feeder_index)
                 return next_feeder_index
 
-    return 1000 # random large num
+    return None
 
 
 
 
 
+# we'll cache this list
+Sorted_Feeders_List = None 
+def get_sorted_feeders_list():
+    global Sorted_Feeders_List
+    if Sorted_Feeders_List is not None:
+        return Sorted_Feeders_List
+    Sorted_Feeders_List = psypnp.search.get_sorted_feeders_list()
+    return Sorted_Feeders_List
 
 
 
 def get_next_feeder_from(startidx):
     nxtFeed = None
     print("GETTING NEXT FEEDER STARTING AT IDX %i" % startidx)
-    feederList = machine.getFeeders()
+    feederList = get_sorted_feeders_list()
     if feederList is None or not len(feederList):
         psypnp.showError("no feeders to check")
         return None
 
 
     next_feeder_index = get_next_feeder_index(startidx)
-    if next_feeder_index >= len(feederList):
+    if next_feeder_index is None or next_feeder_index >= len(feederList):
         psypnp.showError("out of feeders to check")
         return None
 
@@ -184,35 +205,81 @@ def get_next_feeder_from(startidx):
     return nxtFeed
 
 
+def get_current_feeder():
+    
+    cur_feeder_index = get_current_idx()
+    feederList = get_sorted_feeders_list()
+    if feederList is None or not len(feederList):
+        psypnp.showError("no feeders found")
+        return None
+    
+    curFeed = feederList[cur_feeder_index]
+
+    return curFeed
 
 
 def check_feeder_heights():
     global StorageParentName
+    
     cur_feeder_index = get_current_idx()
-    next_feeder_index = get_next_feeder_index(cur_feeder_index)
-    nxtFeed = get_next_feeder_from(next_feeder_index)
-    feederPart = nxtFeed.getPart()
+    #next_feeder_index = get_next_feeder_index(cur_feeder_index)
+    
+    
+    curFeed = get_current_feeder()
+    #curFeed = get_next_feeder_from(next_feeder_index)
+    feederPart = curFeed.getPart()
     print("Will move to feeder %i\n%s     \nwith part   \n%s    " % 
-            (next_feeder_index, str(nxtFeed.getName()), str(feederPart.getId())))
+            (cur_feeder_index, str(curFeed.getName()), str(feederPart.getId())))
 
     # always safeZ
     machine.defaultHead.moveToSafeZ()
     # we don't want to go straight to the cam location--first XY, 
     # then Z
-    feedPickLoc = nxtFeed.getPickLocation()
+    feedPickLoc = curFeed.getPickLocation()
     safeMoveLocation = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 0, 45);
     machine.defaultHead.defaultNozzle.moveTo(safeMoveLocation)
     #print("WOULD MOVE FIRST TO: %s" % str(safeMoveLocation))
-
-    locRealDepth = Location(feedPickLoc.getUnits(), 0, 0, feedPickLoc.getZ(), 0)
-    locSafeDepth = locRealDepth.add(Location(LengthUnit.Millimeters, 0, 0, 6, 0))
+    
+    locDepthZ = feedPickLoc.getZ()
+    if MinSaneHeightAbs > abs(locDepthZ):
+        print("Something weird with this feed -- height is %s" % str(locDepthZ))
+        psypnp.ui.showError("Feeder height is strange: %s" % curFeed.getId())
+        return False
+    
+    # length "down" to bottom of feed pick location, e.g. -35.00
+    locDepthZLength = Length(locDepthZ, feedPickLoc.getUnits())
+    
+    # height of part, this is how much above the bottom of the feed pick 
+    # location openpnp will travel before picking up
+    partHeight = feederPart.getHeight()
+    
+    actualDepthZTravelled = locDepthZLength.add(partHeight)
+    
+    # target location "real" depth openpnp will travel (as Location object)
+    locRealDepth = Location(feedPickLoc.getUnits(), 0, 0, actualDepthZTravelled.getValue(), 0)
+    
+    # safe depth to travel to, basically real location depth + MinSaneHeightAbs (mm)
+    locSafeDepth = locRealDepth.add(Location(LengthUnit.Millimeters, 0, 0, MinSaneHeightAbs, 45))
+    
+    # our first stage move is the (x,y) "safe" location with safe motion down
     locDownFirstStage = safeMoveLocation.add(locSafeDepth)
+    # go there now
     machine.defaultHead.defaultNozzle.moveTo(locDownFirstStage)
-    #print("WOULD THEN MOVE TO: %s" % str(locDownFirstStage))
+    print("NOW MOVE TO: %s" % str(locDownFirstStage))
+    
+    # now lets slow down
     curSpeed = machine.getSpeed()
     machine.setSpeed(0.25)
-    #print("WOULD FINALLY MOVE TO: %s" % str(feedPickLoc))
-    machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
+    
+    #locFinalApproach = safeMoveLocation.add(locRealDepth)
+    #locFinalApproach = feedPickLoc.subtract(locRealDepth)Location(feedPickLoc.getUnits(), 0, 0, actualDepthZTravelled.getValue(), 0)
+    locFinalApproach = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 
+                                actualDepthZTravelled.getValue(), feedPickLoc.getRotation())
+    
+    
+    print("WILL FINALLY MOVE TO: %s" % str(locFinalApproach))
+    print("ORIG FEEDPICK LOC: %s" % str(feedPickLoc))
+    machine.defaultHead.defaultNozzle.moveTo(locFinalApproach)
     machine.setSpeed(curSpeed)
 
     keepShowing = True
@@ -227,27 +294,29 @@ def check_feeder_heights():
     
         if sel == 0:
             # all good
-            increment_idx_counter(next_feeder_index)
+            increment_idx_counter(cur_feeder_index)
             machine.defaultHead.moveToSafeZ()
             return True
         if sel == 1:
             # calculate height based on this
             # take the part height and call the feeder that much lower
-            pHeight = feederPart.getHeight()
             nozLoc = machine.defaultHead.defaultNozzle.location
             nozHeight = Length(nozLoc.getZ(), nozLoc.getUnits())
-            feederHeight = nozHeight.subtract(pHeight)
-            # now get the reference hole loctation
-            refHole = nxtFeed.getReferenceHoleLocation()
+            feederHeight = nozHeight.subtract(partHeight)
+            # now get the reference hole location
+            refHole = curFeed.getReferenceHoleLocation()
             # create a new hole without a Z
             newHole = Location(refHole.getUnits(), refHole.getX(), refHole.getY(), 0, refHole.getRotation())
             # finally, add the feederHeight we determined
-            newZLoc = Location(feederHeight.getUnits(), 0, 0, nozLoc.getZ(), 0)
+            #newHeight = nozLoc.getZ()
+            newZLoc = Location(feederHeight.getUnits(), 0, 0, feederHeight.getValue(), 0)
+            
             newHole = newHole.add(newZLoc)
+            
             #print("WILL Set ref hole for %s to %s" % (feederPart.getName(), str(newHole)))
-            nxtFeed.setReferenceHoleLocation(newHole)
+            curFeed.setReferenceHoleLocation(newHole)
             machine.defaultHead.moveToSafeZ()
-            increment_idx_counter(next_feeder_index)
+            increment_idx_counter(cur_feeder_index)
             return True
         if sel == 2: # Up 0.1
             feedPickLoc = feedPickLoc.add(Location(LengthUnit.Millimeters, 0, 0, 0.1, 0))
