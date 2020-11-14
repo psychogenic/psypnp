@@ -86,8 +86,8 @@ def parts_by_package_name(pkgname):
 
 def get_next_feeder_index(startidx, onlyEnabled=True):
     nxtFeed = None
-    machine = psypnp.globals.machine()
-    feederList = machine.getFeeders()
+    #machine = psypnp.globals.machine()
+    feederList = get_sorted_feeders_list()
     if feederList is None or not len(feederList):
         return 0
     
@@ -107,8 +107,9 @@ def get_next_feeder_index(startidx, onlyEnabled=True):
                 next_feeder_index += 1
             else:
                 return next_feeder_index
-
-    return 1000 # random large num
+    
+    print("Could not find next feeder index")
+    return 1001 # random large num
 
 
 class FeedDetails:
@@ -134,9 +135,9 @@ def feed_by_partname(pname, onlyEnabled=True):
 def feed_by_parts(partsList, onlyEnabled=True):
     #print("DONIG FEEDBYPART FOR %s" % str(machine))
     
-    machine = psypnp.globals.machine()
+    #machine = psypnp.globals.machine()
     # get our feeders
-    feederList = machine.getFeeders()
+    feederList = get_sorted_feeders_list()
     #print("DONIG222 FEEDBYPART FOR %s" % str(machine))
     if feederList is None or not len(feederList):
         showError("No feeders found")
@@ -148,6 +149,9 @@ def feed_by_parts(partsList, onlyEnabled=True):
     while matchingFeed is None and stillSearching:
         cur_idx = get_next_feeder_index(cur_idx, 
                                         onlyEnabled)
+        if cur_idx is None or cur_idx > len(feederList):
+            return None 
+        
         aFeed = feederList[cur_idx]
         feedPart =  aFeed.getPart()
         #print("Checking if feed %i is a match" % cur_idx)
@@ -171,10 +175,31 @@ def feed_by_parts(partsList, onlyEnabled=True):
     
     return FeedDetails(matchingFeed, cur_idx)
 
+def _feed_key(afeed):
+    
+    if afeed is None:
+        return ''
+    
+    if hasattr(afeed, 'getName'):
+        return afeed.getName()
+    
+    return afeed.getId()
+
+def get_sorted_feeders_list():
+    machine = psypnp.globals.machine()
+    feeders = machine.getFeeders()
+    
+    sorted_feeders = sorted(feeders, key=_feed_key)
+    print("Returning sorted feeds list:\n%s" % str(sorted_feeders))
+    return sorted_feeders
+
+
+
+
 def feed_by_name(fname, onlyEnabled=True):
     # get our feeders
-    machine = psypnp.globals.machine()
-    feederList = machine.getFeeders()
+    #machine = psypnp.globals.machine()
+    feederList = get_sorted_feeders_list()
     if feederList is None or not len(feederList):
         showError("No feeders found")
         return None
@@ -185,6 +210,9 @@ def feed_by_name(fname, onlyEnabled=True):
     lowerName = fname.lower()
     while stillSearching:
         cur_idx = get_next_feeder_index(cur_idx, onlyEnabled)
+        if cur_idx is None or cur_idx >= len(feederList):
+            return None 
+        
         aFeed = feederList[cur_idx]
         if aFeed.getName().lower().find(lowerName) >= 0:
             # gotcha
