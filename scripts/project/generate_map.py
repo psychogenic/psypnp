@@ -50,12 +50,16 @@ StorageParentName = 'fdrmap'
 IncludeFeedNameInDesc = True
 ImageScaleFactor = 5
 ImageMargins = 2000
-FontSize = 24
+FontSize = 32
+FontSpacingShrink = 3
 IncludeDisabledOfSamePart = False
 FontStyle="font-family: Arial, Helvetica, sans-serif;"
-ArrowOffset = FontSize*2
-ArrowSideLength = 20
-ArrowColour = 'green'
+ArrowOffset = FontSize*2.5
+ArrowSideLength = FontSize
+BoxColour = 'cadetblue'
+ArrowColour = 'darkcyan'
+
+
 
 FeedIdCounter = 0
 
@@ -140,28 +144,41 @@ def map_coord_to_imagespace(c, offset):
     return ((c - offset) * ImageScaleFactor) + ImageMargins
     
 def text_for_feedinfo(aFeedInfo):
-    if IncludeFeedNameInDesc:
-        return '%s (%s)' % (aFeedInfo.name, aFeedInfo.part.getId())
+    txtVal = aFeedInfo.part.getId()
     
-    return aFeedInfo.part.getId()
+    if IncludeFeedNameInDesc:
+        txtVal = '%s [%s]' % (aFeedInfo.name, aFeedInfo.part.getId())
+        
+    return txtVal.replace('_', ' ')
+    
+    
     
 
 def distance_per_letter():
-    return FontSize - 2
+    return FontSize - FontSpacingShrink
     
 def text_length_dim(strval):
     return (len(strval) * distance_per_letter())
     
+    
+def breathing_room_distance():
+    return (distance_per_letter() * 10)
     
 def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
     feedTxt = text_for_feedinfo(aFeed)
     base_x = map_coord_to_imagespace(aFeed.location.getX(), x_realoffset)
     base_y = coord_flip_y(map_coord_to_imagespace(aFeed.location.getY(), y_realoffset), imgdimY)
     
+    print("Base coords for feed %s are (%s,%s)" % (
+        aFeed.name, 
+        str(base_x),
+        str(base_y)
+        ))
+    
     dy = 0
     dx = 0
     rot = 0
-    boxsize = [FontSize + 5, FontSize+5]
+    boxsize = [int(FontSize*1.5), int(FontSize*1.5)]
     boxpos = [20, 20]
     
     delta_arrow = math.sqrt((ArrowSideLength**2)/2)
@@ -173,6 +190,7 @@ def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
             # going left
             dx = (-1 * distance_per_letter())
             feedTxt = feedTxt[::-1]
+            base_x = base_x - breathing_room_distance()
             boxpos = [base_x - text_size, base_y - FontSize]
             arrowpoints = [
             	(base_x + ArrowOffset, base_y),
@@ -189,7 +207,7 @@ def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
             	(base_x - ArrowOffset, base_y - (2*delta_arrow)),
             	(base_x - ArrowOffset, base_y)
            ]
-        boxsize[0] = text_size + FontSize
+        boxsize[0] = text_size + FontSize + (5*FontSpacingShrink)
     else:
         if aFeed.deltaY < 0:
             # going down
@@ -205,7 +223,7 @@ def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
         else:
             dy = -1 * distance_per_letter()
             feedTxt = feedTxt[::-1]
-            base_y = base_y - text_size
+            base_y = base_y - breathing_room_distance()
             rot = 90
             boxpos=[base_x - 2, base_y - text_size]
             arrowpoints = [
@@ -214,7 +232,7 @@ def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
             	(base_x + (2*delta_arrow), base_y + ArrowOffset),
             	(base_x, base_y + ArrowOffset)
            ]
-        boxsize[1] = text_size + FontSize
+        boxsize[1] = text_size + FontSize + (5*FontSpacingShrink)
     
     
     xcoords = []
@@ -228,11 +246,11 @@ def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
     boxFill = 'none'
     if aFeed.disabled:
         boxFill='red'
-    box = dwg.rect(boxpos, boxsize, stroke='black', fill=boxFill)
+    box = dwg.rect(boxpos, boxsize, fill=boxFill, stroke_width="3", stroke=BoxColour)
     
     arrlines = None
     if len(arrowpoints):
-    	arrlines = dwg.add(dwg.g(id='arrow-%i' % aFeed.fid, stroke=ArrowColour))
+    	arrlines = dwg.add(dwg.g(id='arrow-%i' % aFeed.fid, stroke_width=2, stroke=ArrowColour))
         lastPoint = None
         for aPoint in arrowpoints:
             if lastPoint:
