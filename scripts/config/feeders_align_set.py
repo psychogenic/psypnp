@@ -1,22 +1,37 @@
 '''
+Attempt to align all the reference hole locations for feeders in a set.
 
-Set the configured feeder height based on some reference elevation
-for all feeders matching some name/substring of name.
+Assumes that feeders can be grouped based on their name/id.  For instance,
+if you have a set of reference strip feeders grouped in some physical way
+and named rationally (e.g. 12mmLeft_01, 12mmLeft_02, ... 12mmLeft_12), and
+they have been placed on the workspace at some point so they're positions
+are a loose reflection of reality:
 
-This script takes into account the height of the parts set in these 
-feeds.
+      12mmLeft_01 *
+    12mmLeft_02 *
+        12mmLeft_03 *
+      12mmLeft_04 *
+   12mmLeft_05 *
+      12mmLeft_06 *
+    12mmLeft_07 *
+    12mmLeft_08 *
+    ...
 
-For example, you have 10 feeders called "left*" and they hold the 
-top of all their parts--tiny 0402s, fat 1210 caps, etc--at the same
-level, say -34.00mm.  When the script is called, it will get the
-height for each part and adjust the configured height of the feeder
-to ensure the nozzle goes down to -34, so e.g.
+This script will figure out that they are roughly aligned vertically, and 
+reposition them to get:
 
-  -34.1 for the 0402
-  -34.9 for the 1210
-etc
+      12mmLeft_01 *
+      12mmLeft_02 *
+      12mmLeft_03 *
+      12mmLeft_04 *
+      12mmLeft_05 *
+      12mmLeft_06 *
+      12mmLeft_07 *
+      12mmLeft_08 *
+       ...
 
-@see: https://inductive-kickback.com/2020/10/psypnp-for-openpnp/
+@note: assumes some basic alignment already configured, and that they are 
+either aligned vertically or horizontally.
 
 @author: Pat Deegan
 @copyright: Copyright (C) 2020 Pat Deegan, https://psychogenic.com

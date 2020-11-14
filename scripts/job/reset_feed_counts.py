@@ -1,10 +1,8 @@
 '''
+Resets feeder count to 0, for all|enabled feeders.
 
-Perform a check of feeder heights by lowering down nozzle to each,
-in turn, allowing you to validate and/or modify feeder level.
-
-
-@see: https://inductive-kickback.com/2020/10/psypnp-for-openpnp/
+Useful when you have just reloaded feeders between jobs of 
+the same set of PCBs, for example.
 
 @author: Pat Deegan
 @copyright: Copyright (C) 2020 Pat Deegan, https://psychogenic.com
