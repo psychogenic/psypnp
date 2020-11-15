@@ -54,6 +54,7 @@ FontSize = 32
 FontSpacingShrink = 3
 IncludeDisabledOfSamePart = False
 FontStyle="font-family: Arial, Helvetica, sans-serif;"
+FontStyle="font-family: monospace, sans-serif;"
 ArrowOffset = FontSize*2.5
 ArrowSideLength = FontSize
 BoxColour = 'cadetblue'
@@ -147,7 +148,7 @@ def text_for_feedinfo(aFeedInfo):
     txtVal = aFeedInfo.part.getId()
     
     if IncludeFeedNameInDesc:
-        txtVal = '%s [%s]' % (aFeedInfo.name, aFeedInfo.part.getId())
+        txtVal = '%s [%s]  ' % (aFeedInfo.name, aFeedInfo.part.getId())
         
     return txtVal.replace('_', ' ')
     
