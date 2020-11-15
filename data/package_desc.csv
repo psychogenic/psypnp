@@ -1,19 +1,22 @@
-# package,width ,pitch,tape type
+# package, width, pitch, tape type
 0402,8,2,white
 0603,8,4,white
 0805,8,4,white
 1206,8,4,white
 C_1210,8,4,black
-SOD-523,8,2,black
+Abracon_ASDMB,12,4,black
 Crystal_SMD_2012,8,4,black
+Crystal_SMD_3215,12,4,black
+DFN-10,12,8,black
 DFN8,12,4,black
+LQFP-32,16,12,black
+MSOP-8,12,8,black
 QFN20,12,8,black
 SC59,8,4,black
-DFN-10,12,8,black
-SON50P,12,8,black
-SOIJ-8,12,8,black
-SOT-23-5,8,4,black
-Abracon_ASDMB,12,4,black
-TSSOP-8,12,8,black
+SOD-523,8,2,black
 SOIC-8,12,8,black
-MSOP-8,12,8,black
+SOIJ-8,12,8,black
+SON50P,12,8,black
+SOT-23-5,8,4,black
+SOT-23,8,4,black
+TSSOP-8,12,8,black
