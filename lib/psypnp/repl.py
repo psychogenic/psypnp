@@ -173,8 +173,32 @@ class InterpreterHelper:
         if len(partialMatches):
             return partialMatches
         return None
-
-
+    
+    def listPackages(self, matchName=None):
+        packageIds = []
+        for p in psypnp.globals.config().getPackages():
+            pid = p.getId()
+            if matchName is None or pid.find(matchName) > -1:
+                packageIds.append(pid)
+        return sorted(packageIds)
+    
+    def getPackage(self, pId):
+        allPackages = psypnp.globals.config().getPackages()
+        for p in allPackages:
+            if p.getId() == pId:
+                return p
+        
+        # not found... 
+        print("No exact match, trying for partials")
+        partialMatches = []
+        for p in allPackages:
+            pid = p.getId()
+            if pid.find(pId) > -1:
+                partialMatches.append(p)
+        
+        if len(partialMatches):
+            return partialMatches
+        return None
 
 def getStandardEnvVars():
     variables = dict()

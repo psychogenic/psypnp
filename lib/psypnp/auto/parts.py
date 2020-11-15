@@ -68,6 +68,7 @@ class PartMap:
         self.bom_entry_notfound_count = 0
         self.bom_entriesprocessed_count = 0
         self.percentage_mapped = 0.0
+        self.replace_value_whitespaces = '_' # set this to False to disable.
         
         if not self.bom_csv.parser.success:
             psypnp.ui.showError("Could not parse BOM %s" % bom_filename)
@@ -77,9 +78,12 @@ class PartMap:
     
     
     def map(self):
-        
+        psypnp.debug.out.buffer("Parts map() called:")
         for apart in psypnp.globals.config().getParts():
+            psypnp.debug.out.buffer("%s, " % str(apart.getId()))
             self._parts_map[apart.getId()] = apart
+        
+        psypnp.debug.out.flush("All parts loaded, checking CSV...")
         
         success_count = 0
         notfound_count = 0
@@ -87,8 +91,12 @@ class PartMap:
             openpnpName = self.entryOpenPnPName(bomEntry)
             if openpnpName in self._parts_map:
                 success_count += 1
+                
+                psypnp.debug.out.buffer("Found %s, " % openpnpName)
                 self.parts.append(ProjectPart(bomEntry, self._parts_map[openpnpName]))
             else:
+                psypnp.debug.out.flush()
+                psypnp.debug.out.flush("Could not find part %s\n" % str(bomEntry))
                 self.notfound.append(bomEntry)
                 notfound_count += 1
                 
@@ -116,6 +124,9 @@ class PartMap:
     
     def entryOpenPnPName(self, bomEntry):
         # TODO: kicad naming  specific?
-        return '%s-%s' % (bomEntry.package, bomEntry.value)
+        val = bomEntry.value 
+        if self.replace_value_whitespaces:
+            val = val.replace(' ', self.replace_value_whitespaces)
+        return '%s-%s' % (bomEntry.package, val)
 
     

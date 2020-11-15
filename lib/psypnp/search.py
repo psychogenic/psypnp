@@ -52,10 +52,11 @@ def packages_by_name(pname):
     '''
     config = psypnp.globals.config()
     matchingPackages = []
+    pnameLower = pname.lower()
     for apkg in config.getPackages():
         pid = apkg.getId()
         if pid and len(pid):
-            if pid.lower().find(pname) >= 0:
+            if pid.lower().find(pnameLower) >= 0:
                 matchingPackages.append(apkg)
     
     return matchingPackages

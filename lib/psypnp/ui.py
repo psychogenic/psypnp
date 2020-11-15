@@ -17,11 +17,11 @@ except:
 
 import psypnp.globals
 
-def showError(msg):
+def showError(msg, title=None):
     print("ERROR: %s" % str(msg))
     optPane.showMessageDialog(None, msg)
 
-def showMessage(msg):
+def showMessage(msg, title=None):
     optPane.showMessageDialog(None, msg)
 
 
