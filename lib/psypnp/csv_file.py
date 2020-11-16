@@ -125,11 +125,12 @@ class CSVFile:
 
 
 class PackageDescRow:
-    def __init__(self, name, width=0, pitch=0, tapetype=''):
+    def __init__(self, name, width=0, pitch=0, tapetype='', comments=''):
         self.name = name
         self.width = width 
         self.pitch = pitch 
         self.tapetype = tapetype
+        self.comments = comments
         
     def __string__(self):
         return '%s (%i/%i)' % (self.name, self.width, self.pitch)
@@ -192,10 +193,11 @@ class PackageDescCSV:
         return '<PackageDescCSV %s>' % self.__string__()
             
 class FeedDescRow:
-    def __init__(self, name, width=0, length=0):
+    def __init__(self, name, width=0, length=0, comments=''):
         self.name = name
         self.width = width 
         self.length = length 
+        self.comments = comments
         
     def canCarry(self, aPackage):
         if aPackage is None or not hasattr(aPackage, 'width'):
