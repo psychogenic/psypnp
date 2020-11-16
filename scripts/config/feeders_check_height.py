@@ -34,6 +34,8 @@ import psypnp.nv # non-volatile storage
 import psypnp.search
 
 MinSaneHeightAbs = 5.0
+DoSubtractPartHeightFromLevel = False
+
 
 StorageParentName = 'chkfeedht'
 
@@ -253,7 +255,10 @@ def check_feeder_heights():
     # location openpnp will travel before picking up
     partHeight = feederPart.getHeight()
     
-    actualDepthZTravelled = locDepthZLength.add(partHeight)
+    actualDepthZTravelled = locDepthZLength
+    if DoSubtractPartHeightFromLevel:
+        print("Removing part height from travel depth")
+        actualDepthZTravelled = locDepthZLength.add(partHeight)
     
     # target location "real" depth openpnp will travel (as Location object)
     locRealDepth = Location(feedPickLoc.getUnits(), 0, 0, actualDepthZTravelled.getValue(), 0)
@@ -265,7 +270,7 @@ def check_feeder_heights():
     locDownFirstStage = safeMoveLocation.add(locSafeDepth)
     # go there now
     machine.defaultHead.defaultNozzle.moveTo(locDownFirstStage)
-    print("NOW MOVE TO: %s" % str(locDownFirstStage))
+    #print("NOW MOVE TO: %s" % str(locDownFirstStage))
     
     # now lets slow down
     curSpeed = machine.getSpeed()
@@ -277,14 +282,14 @@ def check_feeder_heights():
                                 actualDepthZTravelled.getValue(), feedPickLoc.getRotation())
     
     
-    print("WILL FINALLY MOVE TO: %s" % str(locFinalApproach))
-    print("ORIG FEEDPICK LOC: %s" % str(feedPickLoc))
+    #print("WILL FINALLY MOVE TO: %s" % str(locFinalApproach))
+    #print("ORIG FEEDPICK LOC: %s" % str(feedPickLoc))
     machine.defaultHead.defaultNozzle.moveTo(locFinalApproach)
     machine.setSpeed(curSpeed)
 
     keepShowing = True
     while keepShowing:
-        sel = psypnp.getOption("Result", "How does it look?",
+        sel = psypnp.getOption("Result", "How does %s look?" % curFeed.getName(),
                 ['Thrilled!', 'Set Height', 'Up 0.1', 'Down 0.1', 'Up 1', 'Down 1'])
 
         if sel is None:
@@ -302,7 +307,10 @@ def check_feeder_heights():
             # take the part height and call the feeder that much lower
             nozLoc = machine.defaultHead.defaultNozzle.location
             nozHeight = Length(nozLoc.getZ(), nozLoc.getUnits())
-            feederHeight = nozHeight.subtract(partHeight)
+            feederHeight = nozHeight
+            if DoSubtractPartHeightFromLevel:
+                print("Adding part height to travel depth")
+                feederHeight = nozHeight.subtract(partHeight)
             # now get the reference hole location
             refHole = curFeed.getReferenceHoleLocation()
             # create a new hole without a Z

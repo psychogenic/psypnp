@@ -42,6 +42,9 @@ from org.openpnp.model import Location, Length, LengthUnit
 
 import psypnp
 
+DoSubtractPartHeightFromLevel = False
+
+
 def main():
     set_feeder_heights()
 
@@ -69,7 +72,10 @@ def set_feeder_heights():
             apart = afeeder.getPart()
             if apart is not None:
                 pHeight = apart.getHeight()
-                feederHeight = height.subtract(pHeight)
+                if DoSubtractPartHeightFromLevel:
+                    feederHeight = height.subtract(pHeight)
+                else:
+                    feederHeight = height
                 refHole = afeeder.getReferenceHoleLocation()
                 if refHole is not None:
                     numChanged += 1
