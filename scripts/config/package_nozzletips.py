@@ -84,7 +84,7 @@ def list_no_nozzletips():
         
     groupsOThree = [packageIds[3*i:(3*i)+3] for i in range((len(packageIds)/3) +1)]
     if not groupsOThree[-1]:
-        groupsOThree = answer[:-1]
+        groupsOThree = groupsOThree[:-1]
     
     asStrs = []
     for agrp in groupsOThree:
