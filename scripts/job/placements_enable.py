@@ -133,8 +133,8 @@ def disable_placements_without_feed(forboard):
         if prt is None:
             doDisable = True
         else:
-            feed = psypnp.search.feed_by_parts([prt], onlyEnabled=True)
-            if feed is None:
+            feeds = psypnp.search.feeds_by_part(prt, onlyEnabled=True)
+            if feeds is None:
                 doDisable = True
         
         if doDisable:

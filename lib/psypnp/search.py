@@ -118,7 +118,7 @@ class FeedDetails:
         self.feed = feed
         self.index = index
 
-def feed_by_partname(pname, onlyEnabled=True):
+def feeds_by_partname(pname, onlyEnabled=True):
     
     
     #machine = psypnp.globals.machine()
@@ -131,50 +131,73 @@ def feed_by_partname(pname, onlyEnabled=True):
     if len(matchingParts) > 1:
         print("Multiple matching parts, will select first match")
 
-    return feed_by_parts(matchingParts, onlyEnabled)
+    return feeds_by_partslist(matchingParts, onlyEnabled)
 
-def feed_by_parts(partsList, onlyEnabled=True):
-    #print("DONIG FEEDBYPART FOR %s" % str(machine))
+def feeds_by_part(singlePartObj, onlyEnabled=True, 
+                 returnAllMatching=False, 
+                 feederList=None):
+    ''' 
+        feed_by_part PARTOBJ [onlyEnabled] [returnAllMatching] [feederList] 
+        @param PARTOBJ: the part in question
+        @param onlyEnabled:  only consider enabled feeders
+        @param returnAllMatching: if False (default) returns only ONE feeder, first found
+        @param feederList: search only within this list of feeders
+        
+        @return: A LIST of matching feeds or None if not found.
+    '''
+    if feederList is None:
+        feederList = get_sorted_feeders_list()
+        if feederList is None or not len(feederList):
+            showError("No feeders found")
+            return None 
     
-    #machine = psypnp.globals.machine()
-    # get our feeders
-    feederList = get_sorted_feeders_list()
+    
+    retList = []
+    
+    for aFeed in feederList: 
+        if (onlyEnabled and aFeed.isEnabled()) or not onlyEnabled:
+            feedPart =  aFeed.getPart()
+            if feedPart.getId() == singlePartObj.getId():
+                if returnAllMatching:
+                    retList.append(aFeed) 
+                else:
+                    return [aFeed]
+    
+    
+    if not len(retList):
+        return None 
+    
+    return retList 
+
+
+
+def feeds_by_partslist(partsList, onlyEnabled=True, returnAllMatching=False, feederList=None):
+    '''
+        feeds_by_partslist [onlyEnabled] [returnAllMatching]
+        @param: onlyEnabled only consider enabled feeds
+        @param: returnAllMatching if False (default), only one matching feed per part returned.
+        
+        @return: a list of feeds, or None if none found.
+    '''
+    
+    if feederList is None:
+        feederList = get_sorted_feeders_list()
+        
     #print("DONIG222 FEEDBYPART FOR %s" % str(machine))
     if feederList is None or not len(feederList):
         showError("No feeders found")
         return None
     
-    stillSearching = True
-    cur_idx = 0
-    matchingFeed = None
-    while matchingFeed is None and stillSearching:
-        cur_idx = get_next_feeder_index(cur_idx, 
-                                        onlyEnabled)
-        if cur_idx is None or cur_idx > len(feederList):
-            return None 
-        
-        aFeed = feederList[cur_idx]
-        feedPart =  aFeed.getPart()
-        #print("Checking if feed %i is a match" % cur_idx)
-        if feedPart is not None:
-            for aPart in partsList:
-                if aPart.id == feedPart.id:
-                    matchingFeed = aFeed
-                    stillSearching = False
-                    break
-            if not stillSearching:
-                break
-
-        cur_idx += 1
-        if cur_idx >= len(feederList):
-            # we're at the end of the line
-            stillSearching = False
-
-    if stillSearching or not matchingFeed:
-        showError("Could not find any match for part(s)")
-        return None
+    retList = []
+    for aPart in partsList:
+        matchingFeeds = feeds_by_part(aPart, onlyEnabled, returnAllMatching, feederList)
+        if matchingFeeds is not None:
+            retList.extend(matchingFeeds)
     
-    return FeedDetails(matchingFeed, cur_idx)
+    if not len(retList):
+        return None 
+    
+    return retList
 
 def _feed_key(afeed):
     
@@ -191,7 +214,7 @@ def get_sorted_feeders_list():
     feeders = machine.getFeeders()
     
     sorted_feeders = sorted(feeders, key=_feed_key)
-    print("Returning sorted feeds list:\n%s" % str(sorted_feeders))
+    #print("Returning sorted feeds list:\n%s" % str(sorted_feeders))
     return sorted_feeders
 
 
@@ -207,7 +230,7 @@ def feed_by_name(fname, onlyEnabled=True):
 
     stillSearching = True
     cur_idx = 0
-    matchingFeed = None
+    #matchingFeed = None
     lowerName = fname.lower()
     while stillSearching:
         cur_idx = get_next_feeder_index(cur_idx, onlyEnabled)
@@ -218,7 +241,8 @@ def feed_by_name(fname, onlyEnabled=True):
         if aFeed.getName().lower().find(lowerName) >= 0:
             # gotcha
             if aFeed.isEnabled() or not onlyEnabled:
-                return FeedDetails(aFeed, cur_idx)
+                #return FeedDetails(aFeed, cur_idx)
+                return aFeed
 
         cur_idx += 1
         if cur_idx >= len(feederList):

@@ -95,13 +95,42 @@ def set_idx_by_part():
         return False
     # store it for next time
     psypnp.nv.set_subvalue(StorageParentName, 'partsrch', pname)
-
-    feedDeets = psypnp.search.feed_by_partname(pname)
-    if feedDeets is None or not feedDeets:
+    partsOfInterest =  psypnp.search.parts_by_name(pname)
+    
+    if partsOfInterest is None or not len(partsOfInterest):
+        psypnp.ui.showError("No parts found for '%s'" % pname)
         return True
-
-    set_current_idx(feedDeets.index)
+    
+    allFeeds = get_sorted_feeders_list()
+    if allFeeds is None or not len(allFeeds):
+        psypnp.ui.showError("No feeders found at all?")
+        return False
+        
+    
+    matchingFeeds = psypnp.search.feeds_by_partslist(partsOfInterest, onlyEnabled=True, feederList=allFeeds) 
+    if matchingFeeds is None or not len(matchingFeeds):
+        psypnp.ui.showError("No feeders found for this part")
+        return True
+    
+    if not _set_idx_to_feedid(matchingFeeds[0].getId(), allFeeds):
+        psypnp.ui.showError("Weirdness -- could not extract feed idx??")
+        
     return True
+
+
+def _set_idx_to_feedid(feedId, allFeeds=None):
+    if allFeeds is None:
+        allFeeds = get_sorted_feeders_list()
+        
+    
+    i = 0
+    while i<len(allFeeds):
+        if allFeeds[i].getId() == feedId:
+            set_current_idx(i) 
+            return True 
+        i += 1
+        
+    return False 
 
 
 def set_idx_by_feedname():
@@ -118,12 +147,14 @@ def set_idx_by_feedname():
     psypnp.nv.set_subvalue(StorageParentName, 'feedsrch', feedname)
     
     print("Searching for feed '%s'" % feedname)
-    feedDeets = psypnp.search.feed_by_name(feedname)
-    if feedDeets is not None and feedDeets:
-        print("Setting feed idx to %i" % feedDeets.index)
-        set_current_idx(feedDeets.index)
+    foundFeed = psypnp.search.feed_by_name(feedname)
+    if foundFeed is not None:
+        #print("Setting feed idx to %i" % feedDeets.index)
+        if not _set_idx_to_feedid(foundFeed.getId()):
+            psypnp.ui.showError("Couldn't set feed idx??")
+        # set_current_idx(feedDeets.index)
     else:
-        psypnp.showError("Couldn't locate a feed \nmatching '%s'" % feedname)
+        psypnp.ui.showError("Couldn't locate a feed \nmatching '%s'" % feedname)
 
 
     return True
@@ -193,13 +224,13 @@ def get_next_feeder_from(startidx):
     print("GETTING NEXT FEEDER STARTING AT IDX %i" % startidx)
     feederList = get_sorted_feeders_list()
     if feederList is None or not len(feederList):
-        psypnp.showError("no feeders to check")
+        psypnp.ui.showError("no feeders to check")
         return None
 
 
     next_feeder_index = get_next_feeder_index(startidx)
     if next_feeder_index is None or next_feeder_index >= len(feederList):
-        psypnp.showError("out of feeders to check")
+        psypnp.ui.showError("out of feeders to check")
         return None
 
     nxtFeed = feederList[next_feeder_index]
@@ -212,7 +243,7 @@ def get_current_feeder():
     cur_feeder_index = get_current_idx()
     feederList = get_sorted_feeders_list()
     if feederList is None or not len(feederList):
-        psypnp.showError("no feeders found")
+        psypnp.ui.showError("no feeders found")
         return None
     
     curFeed = feederList[cur_feeder_index]
