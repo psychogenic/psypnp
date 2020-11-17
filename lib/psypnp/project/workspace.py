@@ -88,4 +88,5 @@ class Workspace:
                     if pid.find(pdescname) >= 0:
                         apart.package_description = packDescMap[pdescname]
                         continue
-        
+
+

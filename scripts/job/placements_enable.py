@@ -88,7 +88,7 @@ def use_disable_list():
 
     errStr = ''
     if len(notFoundList):
-        errStr = '  Not Found: %s' % (','.notFoundList)
+        errStr = '  Not Found: %s' % (','.join(notFoundList))
     psypnp.ui.showMessage("Disabled %i %s" % (numDisabled, errStr))
     return
 
