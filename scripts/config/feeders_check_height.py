@@ -167,9 +167,14 @@ def increment_idx_counter(curIdx):
     nxtIdx = get_next_feeder_index(curIdx + 1)
     if nxtIdx is None:
         print("Out of feeders")
-        set_current_idx(0)
-    
-    set_current_idx(nxtIdx)
+        # try from 0
+        nxtIdx = get_next_feeder_index(0)
+        if nxtIdx is None:
+            nxtIdx = 0
+        
+        set_current_idx(nxtIdx)
+    else:
+        set_current_idx(nxtIdx)
 
 def get_current_idx():
     cur_feeder_index = psypnp.nv.get_subvalue(StorageParentName, 'curidx')
@@ -259,6 +264,14 @@ def check_feeder_heights():
     
     
     curFeed = get_current_feeder()
+    if curFeed is None:
+        return False 
+    if not curFeed.isEnabled():
+        # we may have a stale current index
+        reset_idx_counter()
+        psypnp.ui.showError("Stale feed index, have reset. Please go again.")
+        return True 
+    
     #curFeed = get_next_feeder_from(next_feeder_index)
     feederPart = curFeed.getPart()
     print("Will move to feeder %i\n%s     \nwith part   \n%s    " % 
