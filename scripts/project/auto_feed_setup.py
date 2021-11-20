@@ -31,6 +31,7 @@ To use, see the videos and/or my web page, but in short:
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
+import traceback
 python_scripts_folder = os.path.join(scripting.getScriptsDirectory().toString(),
                                       '..', 'lib')
 sys.path.append(python_scripts_folder)
@@ -97,23 +98,31 @@ def auto_setup():
         psypnp.ui.showError("Can't find bom %s " % bom_csv)
         return 
     
-    #Create a WORKSPACE that knows about our meta information
-    wspace = psypnp.project.workspace.Workspace(
-        psypnp.globals.fullpathFromRelative(package_desc_csv), 
-        psypnp.globals.fullpathFromRelative(feed_desc_csv))
+    try:
+        #Create a WORKSPACE that knows about our meta information
+        wspace = psypnp.project.workspace.Workspace(
+            psypnp.globals.fullpathFromRelative(package_desc_csv), 
+            psypnp.globals.fullpathFromRelative(feed_desc_csv))
+        
+        if not wspace.feed_descriptions.isOK():
+            psypnp.ui.showError("Feed descriptions CSV reports NOT ok")
+            return 
+            
+            
+        if not wspace.package_descriptions.isOK():
+            psypnp.ui.showError("package descriptions CSV reports NOT ok")
+            return 
+            
+    except:
+        psypnp.ui.showError("GAG!")
+        return
     
-    if not wspace.feed_descriptions.isOK():
-        psypnp.ui.showError("Feed descriptions CSV reports NOT ok")
-        return 
-        
-        
-    if not wspace.package_descriptions.isOK():
-        psypnp.ui.showError("package descriptions CSV reports NOT ok")
-        return 
-        
-    
-    # Create a PROJECT based on BOM
-    proj = psypnp.project.project.Project(bom_csv, SelectedBOMParserType)
+    try:
+        # Create a PROJECT based on BOM
+        proj = psypnp.project.project.Project(bom_csv, SelectedBOMParserType)
+    except:
+        psypnp.ui.showError("Failed loading project")
+        return
     
     print(str(proj.part_map))
     
@@ -145,12 +154,19 @@ def auto_setup():
     if num_boards is None:
         return 
     
-    if num_boards < 1 or num_boards > 20:
-        psypnp.ui.showError("Please set a number of boards between 1-19.")
+    if num_boards < 1 or num_boards > 30:
+        psypnp.ui.showError("Please set a number of boards between 1-30.")
         return
     
-    
-    num_associated = mapper.map(num_boards)
+    try:
+        num_associated = mapper.map(num_boards)
+    except Exception as exc:
+        num_associated = 0
+        psypnp.ui.showError("Ugh: problem mapping... (ran out of feeders?) %s" % str(exc))
+        print(traceback.format_exc())
+        return
+
+
     if num_associated:
         mapper.compress()
         mapper.dump()
@@ -158,9 +174,14 @@ def auto_setup():
         psypnp.ui.showError("Mapper associated NO feeds?")
         return
     
+
+    confPrompt = "Mapped project to %i feeds.  Apply changes?" % num_associated
+    num_left_over = mapper.numUnassociated()
+    if (num_left_over):
+        confPrompt = "Mapped to %i feeds (%i left unplaced, see Log).  Apply?" % (num_associated, num_left_over)
+
     
-    if not psypnp.ui.getConfirmation("Apply Configuration", 
-        "Mapped project to %i feeds.  Apply changes?" % num_associated):
+    if not psypnp.ui.getConfirmation("Apply Configuration", confPrompt):
         return 
         
     mapper.apply()

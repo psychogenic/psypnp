@@ -40,6 +40,7 @@ import psypnp.nv
 SEL_BYNAME = 0
 SEL_BYPACKAGE = 1
 SEL_BYHEIGHT = 2
+SEL_ALL = 3
 
 # this needs to match getOperation() order
 OP_ENABLE = 0
@@ -80,6 +81,9 @@ class PartFetcher:
         
         return psypnp.search.parts_by_name(pname)
     
+    def allParts(self):
+        return psypnp.globals.config().getParts()
+
     def byPackage(self):
         
         # get default from NV storage
@@ -121,7 +125,8 @@ def main():
     fetcherMap = {
         SEL_BYNAME: partSrc.byName,
         SEL_BYPACKAGE: partSrc.byPackage,
-        SEL_BYHEIGHT: partSrc.byHeight
+        SEL_BYHEIGHT: partSrc.byHeight,
+        SEL_ALL: partSrc.allParts
     }
     
     sel = getSelection()
@@ -178,9 +183,9 @@ def main():
 def getSelection():
     sel =  psypnp.ui.getOption("Bottom Vision", 
                 "Enable/disable bottom vision for part(s)",
-                ['By Name', 'By Package', 'By Height', 'Cancel'], 'Cancel')
+                ['By Name', 'By Package', 'By Height', 'All', 'Cancel'], 'Cancel')
     
-    if sel == 3 or sel < 0:
+    if sel == 4 or sel < 0:
         # cancel
         return None 
     

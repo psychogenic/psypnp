@@ -50,23 +50,25 @@ def get_height_len():
     return height
 
 def set_part_heights():
-    pname = psypnp.getUserInput("Name of part, or substring thereof", "C_0603")
-    if pname is None or not len(pname):
-        return
-    height = get_height_len()
-    if height is None:
-        return
-
-    numChanged = 0
-    for apart in config.getParts():
-        if pname == '*' or apart.id.find(pname) >= 0:
-            numChanged += 1
-            apart.setHeight(height)
-
-    statusMsg = "Number parts affected: %i" % numChanged
-    print(statusMsg)
-    gui.getPartsTab().repaint()
-    psypnp.showMessage(statusMsg)
+    keepGoing = True
+    while keepGoing:
+        pname = psypnp.getUserInput("Name of part, or substring thereof", "C_0603")
+        if pname is None or not len(pname):
+            return
+        height = get_height_len()
+        if height is None:
+            return
+    
+        numChanged = 0
+        for apart in config.getParts():
+            if pname == '*' or apart.id.find(pname) >= 0:
+                numChanged += 1
+                apart.setHeight(height)
+    
+        statusMsg = "Number parts affected: %i" % numChanged
+        print(statusMsg)
+        gui.getPartsTab().repaint()
+        psypnp.showMessage(statusMsg)
 
 
 

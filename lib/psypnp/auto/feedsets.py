@@ -171,7 +171,6 @@ class FeedSet:
         seedFeedIndex = feedNames.index(feedinfo.name)
 
         psypnp.debug.out.buffer("Getting neighbours for feed")
-        #psypnp.debug.out.crumb('getneigh')
         while seedFeedIndex > 0 and (seedFeedIndex + numNeeded) > len(feedNames):
             psypnp.debug.out.buffer("backup!")
             seedFeedIndex -= 1
@@ -188,18 +187,15 @@ class FeedSet:
         numAdded = 0
         last_index_added = 0
         while i < endIdx and i < len(feedNames):
-            #psypnp.debug.out.crumb('loop1')
             fname = feedNames[i]
-            #psypnp.debug.out.crumb('loop1')
             
                 
             if fname in self.feed_by_name and self.feed_by_name[fname].available():
-                #print("YAAAAAAAAAAY %s" % str(self.feed_by_name[feedNames[i]]))
                 psypnp.debug.out.flush("Found neighbour %s" % fname)
                 retList.append(self.feed_by_name[fname])
                 numAdded += 1
                 last_index_added = i
-                psypnp.debug.out.flush("Found neighbour %s XXXXXXX" % fname)
+                
             
             i += 1
         
@@ -208,9 +204,7 @@ class FeedSet:
         else:
             psypnp.debug.out.buffer("need to add a few more")
             i = last_index_added
-            #psypnp.debug.out.crumb('getneigh')
             while i >= 0 and  i<len(feedNames) and numAdded < numNeeded:
-                #psypnp.debug.out.crumb('loop2')
                 if self.feed_by_name[feedNames[i]].available():
                     psypnp.debug.out.buffer("Adding %s" % feedNames[i])
                     retList.append(self.feed_by_name[feedNames[i]])
@@ -221,10 +215,21 @@ class FeedSet:
         psypnp.debug.out.clearAllCrumbs()
             
         return retList
+    
+    def spacePerFeedFor(self, ofPackage):
+        # note: assumes all feeds in set are same size
+        for finfo in self.feeds:
+            if not finfo.available():
+                continue 
+            if finfo.feed_description is None:
+                continue 
+            can_hold = finfo.holdsUpTo(ofPackage)
+            if can_hold > 0:
+                return can_hold 
         
-        
+        return 0
+    
     def hasSpaceFor(self, numunits, ofPackage):
-        
         space_needed = numunits
         num_feeds_required = 0
         for finfo in self.feeds:
@@ -270,7 +275,7 @@ class FeedSet:
             return 
         
         if not self.numEntriesAvailable():
-            psypnp.debug.out.flush("but no space left.")
+            psypnp.debug.out.flush("but is full.")
             return 
         
         # we have some reserved and some available.

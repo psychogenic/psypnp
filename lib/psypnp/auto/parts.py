@@ -96,7 +96,8 @@ class PartMap:
                 self.parts.append(ProjectPart(bomEntry, self._parts_map[openpnpName]))
             else:
                 psypnp.debug.out.flush()
-                psypnp.debug.out.flush("Could not find part %s\n" % str(bomEntry))
+                psypnp.debug.out.flush("Could not find part %s (%s)\n" % 
+                        (str(bomEntry), openpnpName))
                 self.notfound.append(bomEntry)
                 notfound_count += 1
                 

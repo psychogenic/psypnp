@@ -11,6 +11,26 @@ Part of the psypnp OpenPnP scripting modules project
 import psypnp.debug 
 import math
 
+class FeedSelectionDetails:
+    def __init__(self, parentFeedSet, 
+                 statedPreferenceForPkg,
+                 distanceFromCentroid, 
+                 partQty,
+                 numSlotsRequired,
+                 numPartsPerSlot):
+        self.feedSet = parentFeedSet
+        self.hasPreference = statedPreferenceForPkg
+        self.distance = distanceFromCentroid
+        self.partQuantity = partQty
+        self.numSlots = numSlotsRequired
+        self.numPartsPerSlot = numPartsPerSlot
+        
+    def spaceWasted(self):
+        return self.partQuantity % self.numPartsPerSlot 
+    
+    def spaceWastedPercent(self):
+        spwasted = self.spaceWasted()
+        return (100.0 * spwasted / self.numPartsPerSlot)
 
 class WorkspaceMapper:
     def __init__(self, wspace): # (psypnp.project.workspace)
@@ -19,54 +39,131 @@ class WorkspaceMapper:
         self.workspace = wspace 
         # re-map the workspace object(s) for simple access
         self.feed_sets = wspace.feeds.sets 
+        self.num_unplaced = 0
         
+    def numUnassociated(self):
+        return self.num_unplaced
                     
     def isReady(self):
         # to be ready, we need the workspace to be so and for it to 
         # have a project associated
         return self.workspace.isReady() and self.workspace.project is not None
     
+    def outputFSSearchDebug(self, msg, projPart, feedSelectionDeets):
+        psypnp.debug.out.flush("\nFSSearch: %s\n %s for part %s (%i slots, %i/slot, free: %0.2f%%)" % 
+                                           (
+                                               msg,
+                                               str(feedSelectionDeets.feedSet),
+                                               str(projPart),
+                                               feedSelectionDeets.numSlots,
+                                               feedSelectionDeets.numPartsPerSlot,
+                                               feedSelectionDeets.spaceWasted()
+                                            ))
+        return
+    
     def find_feedset_for(self, projPart, inqty):
         psypnp.debug.out.buffer("Searching for feedset for %s" % str(projPart))
         
-        # check each set we have to see if it "prefers" this part package 
-        # Preference is based on having such packages in the set already
-        # either exclusively, or a majority of occupied feeds
+        numPrefSets = 0 # keep track of if _any_ sets already prefer this type
+        feedsetSelDetails = []
         for feedSet in self.feed_sets.entries():
-            # if its preferred AND there's actually enough space, we're done
-            if feedSet.prefersPackage(projPart.package_description):
-                if feedSet.hasSpaceFor(inqty, projPart.package_description):
-                    psypnp.debug.out.buffer("Feedset %s CAN (PREFERED) hold %i %s" % (feedSet, inqty, projPart.package_description))
-                    return feedSet
+            closestFeedInThisSet = feedSet.findNearestAvailableFeed()
+            # only count sets that actually have space for us
+            numSlotsTaken = feedSet.hasSpaceFor(inqty, projPart.package_description)
+            if numSlotsTaken: # 0 indicates can't fit here
+                statedPref = feedSet.prefersPackage(projPart.package_description)
+                if statedPref:
+                    numPrefSets += 1
+                # ok, can accept this part by eating up numSlotsTaken
+                feedsetSelDetails.append(FeedSelectionDetails(feedSet, 
+                                    statedPref,
+                                    closestFeedInThisSet.distance_from_centroid, 
+                                    inqty,
+                                    numSlotsTaken, 
+                                    feedSet.spacePerFeedFor(projPart.package_description)))
+        
+        if not len(feedsetSelDetails):
+            psypnp.debug.out.buffer("find_feedset_for: no more room!")
+            return None
+        
+        # sort them by: 
+        #  - preference (have to _not_ to get True first)
+        #  - number of slots required (less is better)
+        #  - amount of space left over (less is better)
+        #  - distance -- we care, but only as a final determinant
+        feedSetsByPriority = sorted(feedsetSelDetails, 
+                                    key = lambda x: (not x.hasPreference, 
+                                                     x.numSlots, 
+                                                     x.spaceWasted(), 
+                                                     x.distance))
+        
+        # if anyone has a preference for this package type, check if 
+        # we can find a decent fit within that subset first
+        if numPrefSets:
+            # scenarioA: an 0402 can fit in either
+            #   -  two feeds of a long feeder, leaving the 2nd 30% empty
+            #   -  five feeds of a short one, leaving it only 2% empty
+            # scenarioB: an 0603 takes only one slot, in either of 2
+            #   -  one slot of a long feeder, leaving 40% empty
+            #   -  one slot of a short feeder, leaving 1% empty
+            # which is better?
+            # In the latter case, the short (least waste) is obviously best
+            # in the former, least amount of slots taken is better (so I say,
+            # anyway)
+            # they are already sorted by number of slots, and waste second
+            # so the first available prefered feed should be fine
+            # EXCEPT in the case where we've prefered a long feeder for part 1
+            # and the second part would fit in there but waste a lot of space
+            # and could fit in another free set
+            # prefSets = []
+            if numPrefSets < 2 and len(feedSetsByPriority) > 1:
+                # this is a case where we've only started packing one feed
+                # set, should check for less wasteful free set
+                if feedSetsByPriority[1].numSlots == \
+                    feedSetsByPriority[1].numSlots and \
+                    feedSetsByPriority[1].spaceWasted() < feedSetsByPriority[0].spaceWasted():
+                    self.outputFSSearchDebug('Better than preferred', projPart, feedSetsByPriority[1])
+                    return feedSetsByPriority[1].feedSet
+            
+                
+            
+            
+            self.outputFSSearchDebug('PREF', projPart, feedSetsByPriority[0])
+            return feedSetsByPriority[0].feedSet
+            
         
         # ok no one prefers
         # choose by distance, preferring empty sets over close ones, in order to 
         # seed a new set with a preference for this "rejected" package type
         psypnp.debug.out.buffer("no prefs stated, will look for closest available")
-        feedsetsWithDistance = []
-        for feedSet in self.feed_sets.entries():
-            closestFeedInThisSet = feedSet.findNearestAvailableFeed()
-            # only count sets that actually have space for us
-            if feedSet.hasSpaceFor(inqty, projPart.package_description):
-                feedsetsWithDistance.append((closestFeedInThisSet.distance_from_centroid, feedSet))
-                
-        # sort them by distance
-        feedsetsByDistance = sorted(feedsetsWithDistance, key=lambda deets: deets[0])
         
+        # feedsetsByDistance = sorted(feedsetsWithDistance, key=lambda deets: deets.distance)
+        # feedsetsByNumSlots = sorted(feedsetsWithDistance, key=lambda deets: deets.numSlots)
         # go over the available sets, in order, and return
         # anything that is currently empty
-        for feedSetTuple in feedsetsByDistance:
-            fs = feedSetTuple[1]
+        leastWastefulFreeSet = None 
+        leastWasteValue = 1e6 # something gynormous
+        for feedSelDeets in feedSetsByPriority:
+            fs = feedSelDeets.feedSet
             if fs.numEntriesReserved() == 0:
-                psypnp.debug.out.buffer("Found closest EMPTY feedset")
-                # a completely free feedset!
-                return fs 
+                # is free
+                wastedSpace = feedSelDeets.spaceWasted()
+                if  wastedSpace < leastWasteValue:
+                    leastWasteValue = wastedSpace
+                    leastWastefulFreeSet = fs
         
-        psypnp.debug.out.buffer("No empty feedsets available, using closest")
+        
+        if leastWastefulFreeSet:
+            # a completely free feedset!
+            self.outputFSSearchDebug('EMPTY/least waste', projPart, feedSetsByPriority[0])
+            return leastWastefulFreeSet 
+        
+        self.outputFSSearchDebug('No empties', projPart, feedSetsByPriority[0])
         # none were completely free of reservations, just return closest.
-        return feedsetsByDistance[0][1]
-                
-        
+        return feedSetsByPriority[0].feedSet
+    
+    
+    
     def map(self, num_boards=4):
         '''
             For each part that we've mapped, 
@@ -84,6 +181,7 @@ class WorkspaceMapper:
         
         part_map = self.workspace.project.part_map
 
+        self.num_unplaced = 0
         
         num_associated = 0 # counter for number of feeds we ate up 
         for apart in part_map.parts:
@@ -101,13 +199,16 @@ class WorkspaceMapper:
             # magic happens in find_feedset_for (above)
             feedset = self.find_feedset_for(apart, total_qty)
             if feedset is None:
-                psypnp.debug.out.flush("No space found for part %s" % str(apart))
+                psypnp.debug.out.flush("\n")
+                psypnp.debug.out.buffer("NO SPACE for %s\n" % str(apart))
+                self.num_unplaced += 1
                 continue
             
             # have space! get the nearest available feed from this set
             closestFeed = feedset.findNearestAvailableFeed()
             if closestFeed is None:
                 psypnp.debug.out.flush("Have space but NO closest feed???")
+                self.num_unplaced += 1
                 continue
             
             # now we'd like to reserve enough neighbouring feeds to hold 
@@ -131,6 +232,8 @@ class WorkspaceMapper:
             #psypnp.debug.out.clearCrumb('map')
             psypnp.debug.out.flush("Mapped to %i slots" % num_associated)
             
+
+        psypnp.debug.out.flush("Mapping is done.")
         return num_associated
     
     def compress(self):
@@ -144,10 +247,6 @@ class WorkspaceMapper:
     def dump(self):
         self.workspace.feeds.dump()
         
-            
-    #def sourceFiles(self):
-    #    return (self.part_map.bom_csv, self.package_descriptions, self.feed_descriptions)
-    
     
     def __string__(self):
         return ' mapping "%s"' % (str(self.workspace.project))
