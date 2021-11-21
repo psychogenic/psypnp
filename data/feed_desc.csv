@@ -1,4 +1,8 @@
-# Feedname,width (mm),length (mm)
-8mm,8,100
-12mm,12,150
-16mm,16,180
+# Feedname,width (mm),length (mm),enabled (TRUE/FALSE),comment
+8mmLeft,8,85,TRUE,
+8mmRightUp,8,85,TRUE,secondary right (upwards)
+8mmRight,8,85,FALSE,
+8mmTop,8,85,TRUE,now have both Top and Top2
+8mmXtra,8,155,TRUE,xtra long feed set
+12mm,12,150,TRUE,
+16mm,16,210,TRUE,

@@ -16,6 +16,7 @@ Part of the psypnp OpenPnP scripting modules project
 
 import csv as csv_module
 import psypnp.repl
+import psypnp.debug
 
 
 
@@ -160,6 +161,7 @@ class PackageDescCSV:
             self.csv.processEachRow(self.parsePackages, converters)   
         
         
+    
     def isOK(self):
         return self.csv.success
     
@@ -173,6 +175,8 @@ class PackageDescCSV:
             
     def entries(self):    
         return [self.packages[i] for i in self.packages]
+    
+    
     
     
     def findFor(self, bomEntry):
@@ -193,17 +197,22 @@ class PackageDescCSV:
         return '<PackageDescCSV %s>' % self.__string__()
             
 class FeedDescRow:
-    def __init__(self, name, width=0, length=0, comments=''):
+    def __init__(self, name, width=0, length=0, enabled=True, comments=''):
         self.name = name
         self.width = width 
         self.length = length 
+        self.enabled = enabled
         self.comments = comments
+        
         
     def canCarry(self, aPackage):
         if aPackage is None or not hasattr(aPackage, 'width'):
             return False
         
         return self.width == aPackage.width
+    
+    
+    
     
     def holdsUpTo(self, aPackage):
         if not self.canCarry(aPackage):
@@ -244,11 +253,26 @@ class FeedDescCSV:
         converters = [
             None, 
             self.csv.convertToInt,
-            self.csv.convertToInt
+            self.csv.convertToInt,
+            self.convertEnabled
         ]
         if self.csv.success:
             self.csv.processEachRow(self.parseFeeds, converters)   
         
+        
+    
+    
+    def convertEnabled(self, v):
+        ''' convertEnabled
+            @return:  v as a bool
+        '''
+        if v is None or v == '':
+            return True # enabled by default/mere presence
+        
+        if len(v) and v.lower() == '0' or v.lower() == 'false':
+            return False
+        
+        return True 
         
     def isOK(self):
         return self.csv.success
@@ -256,7 +280,13 @@ class FeedDescCSV:
     def parseFeeds(self, anEntry):
         aFeed = FeedDescRow(*anEntry)
         if aFeed.name is not None and len(aFeed.name):
-            self.feeds[aFeed.name] = aFeed
+            if aFeed.enabled:
+                psypnp.debug.out.buffer('Have feed description for %s.'
+                                         % aFeed.name);
+                self.feeds[aFeed.name] = aFeed
+            else:
+                psypnp.debug.out.buffer('Have feed desc %s but is DISABLED. Skip.'
+                                         % aFeed.name);
             
     def findFor(self, aPackage):
         availableFeeds = []
@@ -264,7 +294,7 @@ class FeedDescCSV:
             return availableFeeds
         
         for f in self.feeds:
-            if self.feeds[f].canCarry(aPackage):
+            if f.enabled and self.feeds[f].canCarry(aPackage):
                 availableFeeds.append(self.feeds[f])
         
         return availableFeeds

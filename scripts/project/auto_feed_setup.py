@@ -114,6 +114,8 @@ def auto_setup():
             return 
             
     except:
+        
+        print(traceback.format_exc())
         psypnp.ui.showError("GAG!")
         return
     
