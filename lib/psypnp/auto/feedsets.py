@@ -18,6 +18,7 @@ class FeedInfo:
         self.associated_part = None
         self.package_description = None
         self.feed_description = None
+        self.associated_part_maxcapacity = 0
         
         
     def moveTo(self, otherFeedInfo):
@@ -65,10 +66,12 @@ class FeedInfo:
             return False
         return self.feed_description.canCarry(aPackageDesc)
     
+    
+    
     def setPart(self, aPartInfo, packageDesc):
         self.associated_part = aPartInfo
         self.package_description = packageDesc
-    
+        self.associated_part_maxcapacity = self.holdsUpTo(packageDesc)
     def __string__(self):
         return '%s (%s @ %s)' % (self.name, self.feed, str(self.distance_from_centroid))
     

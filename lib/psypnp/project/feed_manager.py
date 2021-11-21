@@ -65,6 +65,7 @@ class FeedManager:
                 
                 psypnp.debug.out.buffer("setting part to %s" % str(opnpPart))
                 opnpFeed.setPart(opnpPart)
+                opnpFeed.setMaxFeedCount(finfo.associated_part_maxcapacity)
                 
                 # reset rotation
                 
