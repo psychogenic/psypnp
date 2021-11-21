@@ -40,6 +40,7 @@ class WorkspaceMapper:
         # re-map the workspace object(s) for simple access
         self.feed_sets = wspace.feeds.sets 
         self.num_unplaced = 0
+        self.allow_part_spreading = True # allow a part to be spread amongst multiple feed sets
         
     def numUnassociated(self):
         return self.num_unplaced
@@ -69,7 +70,8 @@ class WorkspaceMapper:
         for feedSet in self.feed_sets.entries():
             closestFeedInThisSet = feedSet.findNearestAvailableFeed()
             # only count sets that actually have space for us
-            numSlotsTaken = feedSet.hasSpaceFor(inqty, projPart.package_description)
+            numSlotsTaken = feedSet.numFeedsFor(inqty, 
+                                                projPart.package_description)
             if numSlotsTaken: # 0 indicates can't fit here
                 statedPref = feedSet.prefersPackage(projPart.package_description)
                 if statedPref:
@@ -80,10 +82,11 @@ class WorkspaceMapper:
                                     closestFeedInThisSet.distance_from_centroid, 
                                     inqty,
                                     numSlotsTaken, 
-                                    feedSet.spacePerFeedFor(projPart.package_description)))
+                                    feedSet.spacePerFeedFor(
+                                        projPart.package_description)))
         
         if not len(feedsetSelDetails):
-            psypnp.debug.out.buffer("find_feedset_for: no more room!")
+            psypnp.debug.out.buffer("find_feedset_for: no room in single feed!")
             return None
         
         # sort them by: 
@@ -163,7 +166,123 @@ class WorkspaceMapper:
         return feedSetsByPriority[0].feedSet
     
     
-    
+    def mapPartToSplitFeedsets(self, projPart, totalQty):
+        '''
+            mapPartToSplitFeedsets
+            Part did not completely fit in any individual feedset,
+            but we've allowed splitting into multiple.
+            Attempt that.
+        '''
+        feedsetSelDetails = []
+        tableCapacity = 0
+        pkgDescription = projPart.package_description
+        for feedSet in self.feed_sets.entries():
+            feedsetCapacity = feedSet.holdsUpTo(pkgDescription)
+            if feedsetCapacity:
+                # ok, we can hold a certain number...
+                # make not of different feedset sizes
+                numPerFeed = feedSet.spacePerFeedFor(pkgDescription)
+                numSlotsForCapacity = feedsetCapacity // numPerFeed
+                feedsetSelDetails.append([
+                    numSlotsForCapacity,
+                    totalQty - feedsetCapacity, # left overs
+                    feedsetCapacity,
+                    feedSet.prefersPackage(projPart.package_description),
+                    feedSet 
+                ])
+                
+                tableCapacity += feedsetCapacity
+            
+        if tableCapacity < totalQty:
+            psypnp.debug.out.flush("NO SPACE for %s (split)\n" % str(projPart))
+            return 0
+        
+        # ok, in theory we have enough capacity
+        
+        feedSetsByPriority = sorted(feedsetSelDetails, 
+                                    key = lambda x: (
+                                                       x[1], # leftovers
+                                                       x[0], # numslots 
+                                                       not x[3] # preference
+                                                       ))
+        
+        # psypnp.debug.out.flush(str(feedSetsByPriority))
+        numPartsMapped = 0
+        totalFeedsReserved = 0
+        psypnp.debug.out.buffer("\nSplit over multi-feedsets: %s\n" % str(projPart))
+        
+        for aFeedSetInfo in feedSetsByPriority:
+            numComponentsSetCanCarry = aFeedSetInfo[2] # give feedset everything it can handle
+            targetFeedset = aFeedSetInfo[4]
+            
+            toReserve = totalQty - numPartsMapped
+            if toReserve > numComponentsSetCanCarry:
+                toReserve = numComponentsSetCanCarry
+            
+            psypnp.debug.out.buffer("Split: trying to reserve %i in %s" % 
+                                    (toReserve, targetFeedset))
+            numFeedsReserved = self.mapPartToFeedset(targetFeedset, projPart, 
+                                                     toReserve)
+            if not numFeedsReserved:
+                psypnp.debug.out.flush("SHOULDNT HAPPEN could not reserve split feed??")
+            else:
+                psypnp.debug.out.flush("(split) put %i into %s" % (toReserve, str(targetFeedset)))
+                numPartsMapped += toReserve
+                totalFeedsReserved += numFeedsReserved
+                if numPartsMapped >= totalQty:
+                    return totalFeedsReserved
+        
+        if numPartsMapped < totalQty:
+            psypnp.debug.out.flush("NO SPACE: only mapped %i of %i %s" % (
+                numPartsMapped,
+                totalQty, 
+                str(projPart)))
+        
+        return totalFeedsReserved
+                
+        
+        
+    def mapPartToFeedset(self, feedset, partToAssoc, totalQty):
+        '''
+            mapPartToFeedset
+            the total qty of this part has been deemed to fit within a 
+            certain number of slots of this feedset.
+            Do the association.
+        '''
+        # have space! get the nearest available feed from this set
+        num_associated = 0
+        closestFeed = feedset.findNearestAvailableFeed()
+        if closestFeed is None:
+            psypnp.debug.out.flush("Have space but NO closest feed???")
+            self.num_unplaced += 1
+            return 0
+        
+        # now we'd like to reserve enough neighbouring feeds to hold 
+        # a suitable number of strips for x boards
+        numPerFeed = closestFeed.holdsUpTo(partToAssoc.package_description)
+        if not numPerFeed:
+            psypnp.debug.out.flush("No num/feed returned for part %s in %s" % (
+                    partToAssoc,
+                    closestFeed
+                ))
+            return 0
+        # based on how many this feed can hold, we figure out total strips
+        # needed
+        numFeedsNeeded = math.ceil((1.0*totalQty)/numPerFeed)
+        
+        # now can getNeighbours() on the feed set, using our closest feed as 
+        # the seed
+        neighbourFeeds = feedset.getNeighbours(closestFeed, numFeedsNeeded)
+        # that should be a list containing at least our "seed" feed, maybe more
+        if neighbourFeeds and len(neighbourFeeds):
+            # reserve them all by calling setPart on them
+            for feedToReserve in neighbourFeeds:
+                num_associated += 1
+                psypnp.debug.out.buffer("Reserving feed %s for part %s" % (str(feedToReserve), 
+                                                                           str(partToAssoc)))
+                feedToReserve.setPart(partToAssoc, partToAssoc.package_description)
+        
+        return num_associated
     def map(self, num_boards=4):
         '''
             For each part that we've mapped, 
@@ -198,39 +317,30 @@ class WorkspaceMapper:
             
             # magic happens in find_feedset_for (above)
             feedset = self.find_feedset_for(apart, total_qty)
-            if feedset is None:
-                psypnp.debug.out.flush("\n")
-                psypnp.debug.out.buffer("NO SPACE for %s\n" % str(apart))
-                self.num_unplaced += 1
-                continue
+            if feedset is not None:
+                # have space! get the nearest available feed from this set
+                num_associated += self.mapPartToFeedset(feedset, apart, total_qty)
+            else:
+                # don't have space in single feed...
+                if self.allow_part_spreading:
+                    # but we can try split feeders
+                    psypnp.debug.out.buffer("Split: No single feedset can hold %i of %s, trying spread\n" 
+                                            % (total_qty, str(apart)))
+                    
+                    num_spread_slots = self.mapPartToSplitFeedsets(apart, total_qty)
+                    
+                    if num_spread_slots:
+                        # success!  ok, done for this
+                        num_associated += num_spread_slots
+                    else:
+                        psypnp.debug.out.flush("\n")
+                        psypnp.debug.out.buffer("NO SPACE for %s\n" % str(apart))
+                        self.num_unplaced += 1
+                else: # no space and no part spreading... too bad.
+                    psypnp.debug.out.flush("\n")
+                    psypnp.debug.out.buffer("NO SPACE for %s\n" % str(apart))
+                    self.num_unplaced += 1
             
-            # have space! get the nearest available feed from this set
-            closestFeed = feedset.findNearestAvailableFeed()
-            if closestFeed is None:
-                psypnp.debug.out.flush("Have space but NO closest feed???")
-                self.num_unplaced += 1
-                continue
-            
-            # now we'd like to reserve enough neighbouring feeds to hold 
-            # a suitable number of strips for x boards
-            numPerFeed = closestFeed.holdsUpTo(apart.package_description)
-            # based on how many this feed can hold, we figure out total strips
-            # needed
-            numFeedsNeeded = math.ceil((1.0*total_qty)/numPerFeed)
-            
-            # now can getNeighbours() on the feed set, using our closest feed as 
-            # the seed
-            neighbourFeeds = feedset.getNeighbours(closestFeed, numFeedsNeeded)
-            # that should be a list containing at least our "seed" feed, maybe more
-            if neighbourFeeds and len(neighbourFeeds):
-                # reserve them all by calling setPart on them
-                for feedToReserve in neighbourFeeds:
-                    num_associated += 1
-                    psypnp.debug.out.buffer("Reserving feed %s for part %s" % (str(feedToReserve), str(apart)))
-                    feedToReserve.setPart(apart, apart.package_description)
-            
-            #psypnp.debug.out.clearCrumb('map')
-            psypnp.debug.out.flush("Mapped to %i slots" % num_associated)
             
 
         psypnp.debug.out.flush("Mapping is done.")

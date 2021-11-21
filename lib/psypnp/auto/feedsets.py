@@ -54,11 +54,14 @@ class FeedInfo:
         
     def holdsUpTo(self, aPackageDesc):
         if self.feed_description is None:
+            psypnp.debug.out.buffer('holdsUpTo() [%s] -- no feed desc??' % str(self))
             return 0
+        
         return self.feed_description.holdsUpTo(aPackageDesc)
     
     def canCarry(self, aPackageDesc):
         if self.feed_description is None:
+            psypnp.debug.out.buffer('canCarry()[%s]-- no feed desc??' % str(self))
             return False
         return self.feed_description.canCarry(aPackageDesc)
     
@@ -88,6 +91,17 @@ class FeedSet:
         
         return None
     
+    def remove(self, feedObj):
+        if feedObj.name in self.feed_by_name:
+            del self.feed_by_name[feedObj.name] 
+            newFeeds = []
+            for f in self.feeds:
+                if f.name == feedObj.name:
+                    psypnp.debug.out.buffer("Removing feed %s" % feedObj.name)
+                else:
+                    newFeeds.append(f)
+            
+            self.feeds = newFeeds
     
     def packagesInsertedStats(self):
         pkgs = dict()
@@ -191,7 +205,7 @@ class FeedSet:
             
                 
             if fname in self.feed_by_name and self.feed_by_name[fname].available():
-                psypnp.debug.out.flush("Found neighbour %s" % fname)
+                # psypnp.debug.out.flush("Found neighbour %s" % fname)
                 retList.append(self.feed_by_name[fname])
                 numAdded += 1
                 last_index_added = i
@@ -229,7 +243,31 @@ class FeedSet:
         
         return 0
     
-    def hasSpaceFor(self, numunits, ofPackage):
+    
+    def holdsUpTo(self, ofPackage):
+        total = 0
+        for finfo in self.feeds:
+            if not finfo.available():
+                continue 
+            if not finfo.canCarry(ofPackage):
+                continue
+            can_hold = finfo.holdsUpTo(ofPackage)
+            
+            if can_hold > 0:
+                #psypnp.debug.out.buffer('feed %s says can hold %i' 
+                #                        % (str(finfo), can_hold))
+                total += can_hold 
+        
+        return total
+        
+    
+    def numFeedsFor(self, numunits, ofPackage):
+        '''
+            numFeedsFor will return either:
+              * the number of feeds it will eat up if it 
+                CAN carry ALL numunits; or
+              * 0/false
+        '''
         space_needed = numunits
         num_feeds_required = 0
         for finfo in self.feeds:
@@ -247,12 +285,14 @@ class FeedSet:
         return 0 
             
     def findNearestAvailableFeed(self):
+        # psypnp.debug.out.buffer("findNearestAvailableFeed for %s..." % str(self))
         min_dist_feed = None
         for finfo in self.feeds:
-            if not finfo.available():
-                continue 
-            if min_dist_feed is None or finfo.distance_from_centroid < min_dist_feed.distance_from_centroid:
-                min_dist_feed = finfo
+            if finfo.available():
+                #psypnp.debug.out.buffer("%s avail!" % finfo.name)
+                if min_dist_feed is None or finfo.distance_from_centroid < min_dist_feed.distance_from_centroid:
+                    min_dist_feed = finfo
+                
         
         
         return min_dist_feed
@@ -356,7 +396,7 @@ class SystemFeeds:
     
     def findSetWithSpaceFor(self, numunits, ofPackage):
         for fsname in self.feedsets:
-            if self.feedsets[fsname].hasSpaceFor(numunits, ofPackage):
+            if self.feedsets[fsname].numFeedsFor(numunits, ofPackage):
                 return self.feedsets[fsname]
             
         return None

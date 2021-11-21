@@ -42,6 +42,13 @@ class Workspace:
         
         return True
     
+    def _findFeedNameInMap(self, fname, feedDescNameMap):
+        
+        for feedDescName in feedDescNameMap:
+            if fname.find(feedDescName) >= 0:
+                return feedDescNameMap[feedDescName]
+        
+        return None
     def setProject(self, aProject):
         '''
             setProject(workspace.project.Project obj)
@@ -65,15 +72,23 @@ class Workspace:
                 )
         
         for feedSet in self.feeds.sets.entries():
+            toRemove = []
             for feedInfo in feedSet.entries():
                 
                 if feedInfo.name in feedDistMap:
                     feedInfo.distance_from_centroid = feedDistMap[feedInfo.name]['dist']
+                
+                feedDesc = self._findFeedNameInMap(feedInfo.name, feedDescNameMap)
+                if feedDesc is None:
+                    psypnp.debug.out.flush('Could not find description for feed %s' % feedInfo.name)
+                    toRemove.append([feedSet, feedInfo])
+                else:
+                    feedInfo.feed_description = feedDesc
                     
-                for feedDescName in feedDescNameMap:
-                    if feedInfo.name.find(feedDescName) >= 0:
-                        feedInfo.feed_description = feedDescNameMap[feedDescName]
-                        continue
+            if len(toRemove):
+                for remTup in toRemove:
+                    remTup[0].remove(remTup[1])
+                        
                     
         
         packDescMap = dict()

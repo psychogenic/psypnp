@@ -70,6 +70,7 @@ class DebugOut:
         self.forceAutoFlush = False # useful when crashing, to output all buffer() immediately
         self.is_verbose = False
         self.crumbs = dict()
+        self.maxlinelen = 80
         
     def crumb(self, name):
         if name in self.crumbs:
@@ -94,7 +95,7 @@ class DebugOut:
         else:
             self.outbuf += msg
             
-        if self.forceAutoFlush:
+        if self.forceAutoFlush or len(self.outbuf) >= self.maxlinelen:
             self.flush()
             
     def verbose(self, msg, autoEnter=True):
