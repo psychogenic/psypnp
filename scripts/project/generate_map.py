@@ -33,7 +33,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 
 ############## /BOILER PLATE #################
 
-
+import re
 from org.openpnp.model import Location, Length, LengthUnit 
 
 import psypnp
@@ -52,6 +52,7 @@ except:
 
 StorageParentName = 'fdrmap'
 IncludeFeedNameInDesc = True
+CleanupFeedPartName = True
 ImageScaleFactor = 5
 ImageMargins = 2000
 FontSize = 32
@@ -107,10 +108,15 @@ def map_coord_to_imagespace(c, offset):
     return ((c - offset) * ImageScaleFactor) + ImageMargins
     
 def text_for_feedinfo(aFeedInfo):
-    txtVal = aFeedInfo.part.getId()
+    partName = aFeedInfo.part.getId()
     
+    if CleanupFeedPartName:
+        partName = re.sub(r'_\d+Metric-', ' ', partName)
+        
     if IncludeFeedNameInDesc:
-        txtVal = '%s [%s]  ' % (aFeedInfo.name, aFeedInfo.part.getId())
+        txtVal = '%s [%s]  ' % (aFeedInfo.name, partName)
+    else:
+        txtVal = partName
         
     return txtVal.replace('_', ' ')
     
