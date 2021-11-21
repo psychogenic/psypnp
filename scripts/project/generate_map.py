@@ -5,6 +5,9 @@ This is useful in order to get a better idea of what's going on and,
 more importantly for me, how to re-set the feeders for a batch of 
 boards I've done before, when re-importing the config.
 
+This basically just transforms the feed info mapped out by 
+psypnp.feedmap.feedmapper into an SVG.
+
 @note: you need to have installed the compatible version of 
 svgwrite for this to work. See the project page for deets:
 
@@ -35,6 +38,7 @@ from org.openpnp.model import Location, Length, LengthUnit
 
 import psypnp
 import psypnp.nv # non-volatile storage
+import psypnp.feedmap.feedmapper as FeedMapper
 
 
 
@@ -61,49 +65,6 @@ BoxColour = 'cadetblue'
 ArrowColour = 'darkcyan'
 
 
-
-FeedIdCounter = 0
-
-class FeedInfo:
-    def __init__(self, stype, name, loc, travelX, travelY, part, disabled=False):
-        global FeedIdCounter
-        self.fid = FeedIdCounter
-        FeedIdCounter += 1
-        self.type = stype
-        self.name = name
-        self.location = loc
-        self.deltaX = travelX
-        self.deltaY = travelY
-        self.part = part
-        self.disabled = disabled
-    def toString(self):
-        return "%s (%s) [%s, %s] for %s" % (self.name,
-        	self.type,
-        	str(self.deltaX),
-        	str(self.deltaY),
-        	self.part.getId())
-    
-    def __str__(self):
-        return "Feed %s" % self.toString()
-        
-    def __repr__(self):
-        return "<FeedInfo %s>" % self.toString()
-        
-        
-class TrayFeedInfo(FeedInfo):
-    def __init__(self, name, loc, travelX, travelY, part, disabled=False):
-        # ugh, py2.? inheritance, super not working
-        FeedInfo.__init__(self, 'tray', name, loc, travelX, travelY, part, disabled)
-        self.x_count = 1
-        self.y_count = 1
-        
-        
-        
-class StripFeedInfo(FeedInfo):
-    def __init__(self, name, loc, travelX, travelY, part, disabled=False):
-        FeedInfo.__init__(self, 'strip', name, loc, travelX, travelY, part, disabled)
-    
-        
     
 
 def main():
@@ -119,8 +80,9 @@ def main():
         
     if lastFileName is None:
         lastFileName = 'feed_map.svg'
-        
-    feed_info = map_feeders()
+    
+    fmap = FeedMapper.FeedMapper()
+    feed_info = fmap.map()
     if feed_info is None or not len(feed_info):
         psypnp.showMessage("No enabled feeds to map")
         return
@@ -315,98 +277,7 @@ def generate_image(feed_info, projname, fname):
     dwg.save()
     return len(feed_info)
 
-    
-def process_feed_tray(aFeed):
-    print("TODO: trays not really supported yet\n")
-    offsets = aFeed.getOffsets()
-    deltaX = offsets.getX()
-    deltaY = offsets.getY()
-    tFeed =  TrayFeedInfo(aFeed.getName(), aFeed.getPickLocation(), deltaX, deltaY, aFeed.getPart())
-    tFeed.x_count = aFeed.getTrayCountX()
-    tFeed.y_count = aFeed.getTrayCountY()
-    
-    return tFeed
-    
-    
 
-    
-def process_feed_strip(aFeed):
-    idealLines = aFeed.idealLineLocations
-    if idealLines is None or len(idealLines) < 2:
-        return False
-    
-    deltaX = idealLines[1].getX() - idealLines[0].getX()
-    deltaY = idealLines[1].getY() - idealLines[0].getY()
-    if abs(deltaX) > abs(deltaY):
-        # is X dir, assume pure X
-        return StripFeedInfo(aFeed.getName(), aFeed.getReferenceHoleLocation(), deltaX, 0, aFeed.getPart())
-    
-    # assume pure Y
-    return StripFeedInfo(aFeed.getName(), aFeed.getReferenceHoleLocation(), 0, deltaY, aFeed.getPart())
 
-def process_feed(aFeed):
-    if hasattr(aFeed, 'trayCountX'):
-        return process_feed_tray(aFeed)
-    if hasattr(aFeed, 'idealLineLocations'):
-        return process_feed_strip(aFeed)
-    else:
-        print("Unsupported feed type\n")
-        
-    return None
-        
-def map_feeders():
-    FeedInfoList = []
-    feederList = machine.getFeeders()
-    
-    feeds_processed = 0
-    if feederList is None or not len(feederList):
-        return feeds_processed
-
-    next_feeder_index = 0
-    while next_feeder_index < len(feederList):
-        nxtFeed = None
-        while next_feeder_index < len(feederList) and nxtFeed is None:
-            if feederList[next_feeder_index].isEnabled() and feederList[next_feeder_index].getPart() is not None:
-                nxtFeed = feederList[next_feeder_index]
-            next_feeder_index += 1
-            
-        if nxtFeed is not None:
-            feedDetails = process_feed(nxtFeed)
-            if feedDetails is not None:
-                FeedInfoList.append(feedDetails)
-                feeds_processed += 1
-                
-    if not IncludeDisabledOfSamePart:
-        return FeedInfoList
-    
-    # need to do disabled feeds as well...
-    # get map of enabled parts
-    validParts = dict()
-    for aFeedInfo in FeedInfoList:
-        validParts[aFeedInfo.part.getId()] = True
-        
-    
-
-    next_feeder_index = 0
-    while next_feeder_index < len(feederList):
-        nxtFeed = None
-        while next_feeder_index < len(feederList) and nxtFeed is None:
-            if not feederList[next_feeder_index].isEnabled():
-                part = feederList[next_feeder_index].getPart()
-                if part is not None and part.getId() in validParts:
-                    nxtFeed = feederList[next_feeder_index]
-            next_feeder_index += 1
-            
-        if nxtFeed is not None:
-            feedDetails = process_feed(nxtFeed)
-            if feedDetails is not None:
-                feedDetails.disabled = True
-                FeedInfoList.append(feedDetails)
-                feeds_processed += 1
-        
-    
-    
-
-    return FeedInfoList
     
 main()
