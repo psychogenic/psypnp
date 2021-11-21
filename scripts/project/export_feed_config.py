@@ -1,17 +1,16 @@
 '''
-Generates an (SVG) image of the current state of enabled feeders.
+Generates a CSV file of the current state of enabled feeders.
 
 This is useful in order to get a better idea of what's going on and,
 more importantly for me, how to re-set the feeders for a batch of 
 boards I've done before, when re-importing the config.
 
 This basically just transforms the feed info mapped out by 
-psypnp.feedmap.feedmapper into an SVG.
-
-@note: you need to have installed the compatible version of 
-svgwrite for this to work. See the project page for deets:
+psypnp.feedmap.feedmapper into a CSV file, with enough info
+to do setup but also potentially to re-import later.
 
 @see: https://inductive-kickback.com/2020/10/psypnp-for-openpnp/
+--need to update this...
 
 @author: Pat Deegan
 @copyright: Copyright (C) 2020 Pat Deegan, https://psychogenic.com
@@ -44,21 +43,6 @@ import psypnp.feedmap.feedmapper as FeedMapper
 import csv as csv_module
 
 StorageParentName = 'fdrexp'
-# StorageParentName = 'fdrmap'
-# IncludeFeedNameInDesc = True
-# ImageScaleFactor = 5
-# ImageMargins = 2000
-# FontSize = 32
-# FontSpacingShrink = 3
-# IncludeDisabledOfSamePart = False
-# FontStyle="font-family: Arial, Helvetica, sans-serif;"
-# FontStyle="font-family: monospace, sans-serif;"
-# ArrowOffset = FontSize*2.5
-# ArrowSideLength = FontSize
-# BoxColour = 'cadetblue'
-# ArrowColour = 'darkcyan'
-
-
     
 
 def main():
@@ -123,6 +107,8 @@ def generate_csv(feed_info, projname, fname):
     
     hdrs = [
         '# type',
+        'set#',
+        'of',
         'name',
         'part',
         'package',
@@ -142,20 +128,28 @@ def generate_csv(feed_info, projname, fname):
         'refrot',
         'refunit',
     ]
+    
+    globCountMap = dict()
     with open(fname, 'w') as csvfile:
         csvwriter = csv_module.writer(csvfile, delimiter=',',
                             quotechar='"', quoting=csv_module.QUOTE_MINIMAL)
         
-            
-        for aFeedInfo in feed_info:
-            feedDescriptions.append(gather_columns(aFeedInfo))
-            
-        sortedFeedDescs = sorted(feedDescriptions, key=lambda x: (x[1], x[2], x[3]))
+        
+        
+        sorted_feedinfo = sorted(feed_info, key=lambda x: (x.part.getId(), x.feed.getName()))
+        
+        
+        for aFeedInfo in sorted_feedinfo:
+            feedDescriptions.append(gather_columns(aFeedInfo, globCountMap))
+        
+        partFeedCountTotalIdx = 2
+        partIdIndex = 4
+        feedIdIndex = 3
+        sortedFeedDescs = sorted(feedDescriptions, key=lambda x: (x[feedIdIndex], x[partIdIndex]))
         
         dtnow = datetime.datetime.now()
         
-        firstline = ['', '%s, %s: %i feeds [(%i,%i) - (%i,%i)]' % (
-            projname,
+        firstline = ['#', '', '', projname, '%s: %i feeds [(%i,%i) - (%i,%i)]' % (
             dtnow.strftime("%Y-%m-%d %H:%M:%S"),
             len(sortedFeedDescs),
             x_range[0],
@@ -166,20 +160,32 @@ def generate_csv(feed_info, projname, fname):
         csvwriter.writerow(firstline)
         csvwriter.writerow(hdrs)
         for f in sortedFeedDescs:
+            f[partFeedCountTotalIdx] = globCountMap[f[partIdIndex]]
             csvwriter.writerow(f)
         
     
     return len(feedDescriptions)
             
     
-def gather_columns(aFeedInfo):
+def gather_columns(aFeedInfo, globCountMap):
     aFeed = aFeedInfo.feed
     refHole = aFeed.getReferenceHoleLocation()
     loc = aFeed.getLocation()
     part = aFeedInfo.part 
     pkg = part.getPackage()
+    
+    partName = part.getId()
+    # keep a running tab of part, and 
+    # use this as the index for the set
+    if partName in globCountMap:
+        globCountMap[partName] += 1
+    else:
+        globCountMap[partName] = 1
+        
     return [
         aFeedInfo.type,
+        globCountMap[partName], # set index e.g. 2 of 4
+        -1, # total slots for part, set later
         aFeed.getName(),
         part.getId(),
         pkg.getId(),
