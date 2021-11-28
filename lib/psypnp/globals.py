@@ -39,7 +39,7 @@ Part of the psypnp OpenPnP scripting modules project
 import os.path
 import traceback
 import re
-
+from org.openpnp.spi.MotionPlanner import CompletionType
 try:
     import javax.swing.JOptionPane as optPane
 except:
@@ -135,6 +135,26 @@ def machine():
         return doSetupError()
     return _gMachine
 
+
+def machineExecuteMotions(headMountable=None):
+    # do what I told you, dammit
+    # fact is, this stuff is now queued until someone is 
+    # waiting on it to be done... so, we wait.
+    m = machine()
+    if m is None:
+        return
+    mp = m.getMotionPlanner()
+    if mp is None:
+        return 
+    
+    if headMountable is None:
+        if m.defaultHead is None:
+            return 
+        defNozz = m.defaultHead.getDefaultNozzle()
+        if defNozz is None:
+            return
+        headMountable = defNozz
+    mp.waitForCompletion(headMountable, CompletionType.WaitForStillstand)
 
 def scripting(): 
     global _gScripting
