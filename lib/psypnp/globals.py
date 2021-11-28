@@ -37,6 +37,8 @@ Part of the psypnp OpenPnP scripting modules project
 @license: GPL version 3, see LICENSE file for details.
 '''
 import os.path
+import traceback
+import re
 
 try:
     import javax.swing.JOptionPane as optPane
@@ -48,15 +50,47 @@ _gConfig = None
 _gMachine = None
 _gScripting = None
 _gGUI = None 
-_parentDir = None 
+_parentDir = None
+_callingFile = None
 def setup(machine, config, scripting, gui):
     global _gConfig, _gMachine, _gScripting, _gGUI
     _gMachine = machine 
     _gConfig = config 
     _gScripting = scripting
     _gGUI = gui 
+    # _setupCallingFile()
     
+def _setupCallingFile():
+    # this doesn't do what I hoped... 
+    # I can figure out the script that was launched
+    # but can't seem to re-spawn it with an import
+    # _unless_ it's homed in the top-level scripts/ dir
+    # dunno...  may be that my toy script is ok but 
+    # all real scripts all expect 
+    # machine/scripting/and all that and they are just 
+    # dying, so we're in eval inception.  meh, not 
+    # a priority.
+    global _callingFile
+    setupStack = current_stack()
+    if setupStack and len(setupStack):
+        firstLine = setupStack[0]
+        mtch =  re.search('File "([^"]+)"', firstLine)
+        if mtch:
+            grps =  mtch.groups()
+            if grps and len(grps):
+                _callingFile = grps[0]
     
+
+        
+def current_script():
+    return _callingFile 
+
+
+
+def current_stack():
+    return traceback.format_stack()
+
+
 def doSetupError():
     optPane.showMessageDialog(None,"psypnp.globals.setup() never called")
     return None 

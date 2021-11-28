@@ -21,3 +21,8 @@ FeedDescCSV='feeddesccsv'
 # crossfeed scripts
 CrossFeedScripts='crossfeeds'
 CrossSmallFeedDistance='smallfeed'
+
+# generic feed searching
+FeedSearchStorage = 'fds_srch'
+
+

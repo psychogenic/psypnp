@@ -9,6 +9,7 @@ Part of the psypnp OpenPnP scripting modules project
 @copyright: Copyright (C) 2020 Pat Deegan, https://psychogenic.com
 @license: GPL version 3, see LICENSE file for details.
 '''
+
 try:
     import javax.swing.JOptionPane as optPane
 except:
@@ -79,8 +80,6 @@ def getConfirmation(title, message, options=None, optDefault=None):
     
     return False
 
-
-
 def getSelectedBoards():
     boardLocs = psypnp.globals.gui().jobTab.getSelections()
     if not boardLocs or (not len(boardLocs)) or not boardLocs[0]:
@@ -91,3 +90,18 @@ def getSelectedBoards():
         boardsList.append(bloc.board)
 
     return boardsList
+
+def getSelectedFeeders():
+    feederSelections = psypnp.globals.gui().getFeedersTab().getSelections()
+    
+    feedersList = []
+    for f in feederSelections:
+        
+        fname = f.toString()
+        if fname and len(fname):
+            fname = fname.replace('[', '')
+            fname = fname.replace('[', '')
+            feedersList.append(fname)
+            
+    return feedersList
+        

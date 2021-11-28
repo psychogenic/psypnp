@@ -13,6 +13,41 @@ import psypnp.auto.feed
 
 from org.openpnp.model import Location
 from org.openpnp.machine.reference.feeder import ReferenceStripFeeder
+
+class FeedSwapper:
+    def __init__(self):
+        pass
+    
+    def movePart(self, fromOpnpFeed, toOpnpFeed, doSwap=True):
+        
+        srcFeed = fromOpnpFeed
+        destFeed = toOpnpFeed
+        
+        srcPart = srcFeed.getPart()
+        
+        dstPart = destFeed.getPart()
+        dstTape = destFeed.getTapeType()
+        dstEnabled = destFeed.isEnabled()
+        dstFeedCount = destFeed.getFeedCount()
+        
+        destFeed.setTapeType(srcFeed.getTapeType())
+        if srcPart is None:
+            destFeed.setEnabled(False)
+        else:
+            destFeed.setPart(srcPart)
+            destFeed.setEnabled(srcFeed.isEnabled())
+        
+        destFeed.setFeedCount(srcFeed.getFeedCount())
+        destFeed.setTapeType(srcFeed.getTapeType())
+        
+        if dstPart is None or not doSwap:
+            srcFeed.setEnabled(False)
+        else:
+            srcFeed.setPart(dstPart)
+            srcFeed.setEnabled(dstEnabled)
+            srcFeed.setFeedCount(dstFeedCount)
+            srcFeed.setTapeType(dstTape)
+            
     
 class FeedManager:
     

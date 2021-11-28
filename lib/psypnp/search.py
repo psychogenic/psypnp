@@ -10,6 +10,7 @@ Part of the psypnp OpenPnP scripting modules project
 '''
 from psypnp.ui import showError
 import psypnp.globals 
+import psypnp.ui
 
 def parts_by_name(pname):
     '''
@@ -249,4 +250,46 @@ def feed_by_name(fname, onlyEnabled=True):
             # we're at the end of the line
             stillSearching = False
             return None
+
+
+class SearchFeedResults:
+    
+    def __init__(self, searchName, matchingFeeds):
+        self.searched = searchName
+        self.results = matchingFeeds
+        
+
+def prompt_for_feeders_by_name(promptstr, defaultName=None):
+    '''
+        Prompts user for a search string (defaultName,
+        used as default, if provided).
+        
+        @return: SearchFeedResults object or None
+        None returned on abort.
+        SearchFeedResults provides both the searched-for
+        term (.searched) and the results list (which may be empty
+    '''
+    machine = psypnp.globals.machine()
+    if defaultName is None or not len(defaultName):
+        defaultName = '8mmLeft' # some default value
+    
+    pname = psypnp.ui.getUserInput(promptstr, defaultName)
+    if pname is None or not len(pname):
+        return None
+    
+    matchingFeeders = []
+    
+    for afeeder in machine.getFeeders():
+        if afeeder.getName().find(pname) >= 0:
+            matchingFeeders.append(afeeder)
+    
+    if not len(matchingFeeders):
+        return  SearchFeedResults(matchingFeeders, pname)
+    
+    sortedMatchingFeeders = sorted(matchingFeeders, 
+                                   key=_feed_key)
+    return SearchFeedResults(
+        pname,
+        sortedMatchingFeeders)
+
 

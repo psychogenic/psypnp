@@ -1,7 +1,6 @@
 '''
 Created on Oct 16, 2020
 
-
 Part of the psypnp OpenPnP scripting modules project
 @author: Pat Deegan
 @copyright: Copyright (C) 2020 Pat Deegan, https://psychogenic.com
@@ -30,7 +29,22 @@ class FeedSelectionDetails:
     
     def spaceWastedPercent(self):
         spwasted = self.spaceWasted()
-        return (100.0 * spwasted / self.numPartsPerSlot)
+        return ((100.0 * spwasted / self.numPartsPerSlot)/self.numSlots)
+    
+    def dump(self):
+        psypnp.debug.out.buffer("\tParent FS: %s" % str(self.feedSet))
+        vals = [('pref', self.hasPreference), 
+                ('numSlots', self.numSlots), 
+                ('sp-waste', self.spaceWastedPercent()),
+                ('qty', self.partQuantity),
+                ('pps', self.numPartsPerSlot),
+                ('dist', self.distance)
+        ]
+        psypnp.debug.out.buffer("\tParent FS: %s\n" % str(self.feedSet))
+        for v in vals:
+            psypnp.debug.out.buffer('\t%s: %s\n' % (v[0], str(v[1])))
+        
+        
 
 class WorkspaceMapper:
     def __init__(self, wspace): # (psypnp.project.workspace)
@@ -41,6 +55,7 @@ class WorkspaceMapper:
         self.feed_sets = wspace.feeds.sets 
         self.num_unplaced = 0
         self.allow_part_spreading = True # allow a part to be spread amongst multiple feed sets
+        self.verbose_debug = True # this is a toughy, so more debug with this true
         
     def numUnassociated(self):
         return self.num_unplaced
@@ -62,6 +77,11 @@ class WorkspaceMapper:
                                             ))
         return
     
+    
+    def dumpFeedSetSelectionDeets(self, feedSel):
+        psypnp.debug.out.buffer("FEEDSEL DEETS: \n")
+        feedSel.dump()
+        
     def find_feedset_for(self, projPart, inqty):
         psypnp.debug.out.buffer("Searching for feedset for %s" % str(projPart))
         
@@ -92,13 +112,22 @@ class WorkspaceMapper:
         # sort them by: 
         #  - preference (have to _not_ to get True first)
         #  - number of slots required (less is better)
-        #  - amount of space left over (less is better)
         #  - distance -- we care, but only as a final determinant
+        #  - amount of space left over (less is better)
         feedSetsByPriority = sorted(feedsetSelDetails, 
                                     key = lambda x: (not x.hasPreference, 
                                                      x.numSlots, 
-                                                     x.spaceWasted(), 
-                                                     x.distance))
+                                                     x.distance, 
+                                                     x.spaceWasted()))
+        
+        
+        if self.verbose_debug:
+            dumpCount = 0
+            while dumpCount < 4 and dumpCount < len(feedSetsByPriority):
+                self.dumpFeedSetSelectionDeets(feedSetsByPriority[dumpCount])
+                dumpCount += 1
+                
+            psypnp.debug.out.flush("\n")
         
         # if anyone has a preference for this package type, check if 
         # we can find a decent fit within that subset first
@@ -136,34 +165,55 @@ class WorkspaceMapper:
             
         
         # ok no one prefers
-        # choose by distance, preferring empty sets over close ones, in order to 
-        # seed a new set with a preference for this "rejected" package type
         psypnp.debug.out.buffer("no prefs stated, will look for closest available")
         
-        # feedsetsByDistance = sorted(feedsetsWithDistance, key=lambda deets: deets.distance)
-        # feedsetsByNumSlots = sorted(feedsetsWithDistance, key=lambda deets: deets.numSlots)
-        # go over the available sets, in order, and return
-        # anything that is currently empty
-        leastWastefulFreeSet = None 
-        leastWasteValue = 1e6 # something gynormous
-        for feedSelDeets in feedSetsByPriority:
-            fs = feedSelDeets.feedSet
-            if fs.numEntriesReserved() == 0:
-                # is free
-                wastedSpace = feedSelDeets.spaceWasted()
-                if  wastedSpace < leastWasteValue:
-                    leastWasteValue = wastedSpace
-                    leastWastefulFreeSet = fs
+        # prefer less slots over more slots, because that's less work for me
+        maxNumSlots = feedSetsByPriority[0].numSlots
+        feedSetsWithSameNumberSlots = []
+        feedSetsEmpty = []
+        for feedSetDeets in feedSetsByPriority:
+            if feedSetDeets.numSlots <= maxNumSlots:
+                feedSetsWithSameNumberSlots.append(feedSetDeets)
+                if feedSetDeets.feedSet.numEntriesReserved() == 0:
+                    feedSetsEmpty.append(feedSetDeets)
+                
+        # prefer empties
+        if len(feedSetsEmpty):
+            psypnp.debug.out.buffer("have empty feedset for our %i slots, using that" 
+                                    % feedSetsEmpty[0].numSlots)
+            return feedSetsEmpty[0].feedSet 
+        
+        self.outputFSSearchDebug('No empties', projPart, feedSetsWithSameNumberSlots[0])
         
         
-        if leastWastefulFreeSet:
-            # a completely free feedset!
-            self.outputFSSearchDebug('EMPTY/least waste', projPart, feedSetsByPriority[0])
-            return leastWastefulFreeSet 
+        return feedSetsWithSameNumberSlots[0].feedSet
         
-        self.outputFSSearchDebug('No empties', projPart, feedSetsByPriority[0])
+        
+        
+        #### This isn't working like I wannittoo
+        # # go over the available sets, in order, and return
+        # # anything that is currently empty
+        # leastWastefulFreeSet = None 
+        # leastWasteValue = 1e6 # something gynormous
+        # for feedSelDeets in feedSetsByPriority:
+        #     fs = feedSelDeets.feedSet
+        #     if fs.numEntriesReserved() == 0:
+        #         # is free
+        #         wastedSpace = feedSelDeets.spaceWasted()
+        #         if  wastedSpace < leastWasteValue:
+        #             leastWasteValue = wastedSpace
+        #             leastWastefulFreeSet = fs
+        #
+        #
+        # if leastWastefulFreeSet:
+        #     # a completely free feedset!
+        #     self.outputFSSearchDebug('EMPTY/least waste', projPart, feedSetsByPriority[0])
+        #     return leastWastefulFreeSet 
+        #
+
+        # self.outputFSSearchDebug('No empties', projPart, feedSetsByPriority[0])
         # none were completely free of reservations, just return closest.
-        return feedSetsByPriority[0].feedSet
+        # return feedSetsByPriority[0].feedSet
     
     
     def mapPartToSplitFeedsets(self, projPart, totalQty):
