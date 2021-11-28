@@ -41,7 +41,9 @@ psypnp.globals.setup(machine, config, scripting, gui)
 from org.openpnp.model import Location, Length, LengthUnit 
 
 import psypnp
-
+import psypnp.nv
+import psypnp.ui
+import psypnp.debug
 DoSubtractPartHeightFromLevel = False
 
 
@@ -59,31 +61,54 @@ def get_height_len():
     return height
 
 def set_feeder_heights():
-    pname = psypnp.getUserInput("Name of feeder, or substring thereof to match many", "8mmStrip")
-    if pname is None or not len(pname):
+    
+    
+    nvStore = psypnp.nv.NVStorage(psypnp.config.storagekeys.FeedSearchStorage)
+    
+    
+    selFeeders = psypnp.ui.getSelectedFeeders()
+    
+    defName = nvStore.feedname
+    if len(selFeeders) == 1:
+        defName = selFeeders[0]
+        
+    if defName is None or not len(defName):
+        defName = '8mmStrip' # some default value
+    
+    
+    feedSearch = psypnp.search.prompt_for_feeders_by_name("Name of feeder, or substring thereof to match many", defName)
+
+    if feedSearch is None or feedSearch.searched is None or not len(feedSearch.searched):
         return
+    
+    nvStore.feedname = feedSearch.searched
+    
+    if not len(feedSearch.results):
+        psypnp.ui.showError("No feeders match name '%s'" % pname, 'None found')
+        return
+    
     height = get_height_len()
     if height is None:
         return
 
     numChanged = 0
-    for afeeder in machine.getFeeders():
-        if pname == '*' or afeeder.getName().find(pname) >= 0:
-            apart = afeeder.getPart()
-            if apart is not None:
-                pHeight = apart.getHeight()
-                if DoSubtractPartHeightFromLevel:
-                    feederHeight = height.subtract(pHeight)
-                else:
-                    feederHeight = height
-                refHole = afeeder.getReferenceHoleLocation()
-                if refHole is not None:
-                    numChanged += 1
-                    newHole = Location(refHole.getUnits(), refHole.getX(), refHole.getY(), 0, 0)
-                    newZ = Location(feederHeight.getUnits(), 0, 0, feederHeight.getValue(), 0)
-                    newHole = newHole.add(newZ)
-                    print("Setting ref hole for %s to %s" % (afeeder.getName(), str(newHole)))
-                    afeeder.setReferenceHoleLocation(newHole)
+    for afeeder in feedSearch.results:
+        apart = afeeder.getPart()
+        if apart is not None:
+            pHeight = apart.getHeight()
+            if DoSubtractPartHeightFromLevel:
+                feederHeight = height.subtract(pHeight)
+            else:
+                feederHeight = height
+            refHole = afeeder.getReferenceHoleLocation()
+            if refHole is not None:
+                numChanged += 1
+                newHole = Location(refHole.getUnits(), refHole.getX(), refHole.getY(), 0, 0)
+                newZ = Location(feederHeight.getUnits(), 0, 0, feederHeight.getValue(), 0)
+                newHole = newHole.add(newZ)
+                psypnp.debug.out.buffer("Setting ref hole for %s to %s" % (afeeder.getName(), str(newHole)))
+                afeeder.setReferenceHoleLocation(newHole)
+    
     print("Number feeders affected: %i" % numChanged)
     gui.getFeedersTab().repaint()
     psypnp.showMessage("Set level Z for %i feeders" % numChanged)

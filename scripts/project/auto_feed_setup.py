@@ -60,6 +60,7 @@ FeedDescCSVKey = keys.FeedDescCSV
 PackageDescCSVKey = keys.PackageDescCSV
 
 LastBomKey = 'lastbom'
+LastBatchNumKey = 'lastbatch'
 
 
 
@@ -152,13 +153,19 @@ def auto_setup():
         psypnp.ui.showError("Workspace ready but mapper unhappy?")
         return
     
-    num_boards = psypnp.ui.getUserInputInt("Number of boards per batch", 4)
+    last_batch_num = psypnp.nv.get_subvalue(ParentKey, LastBatchNumKey)
+    if last_batch_num is None:
+        last_batch_num = 4
+    num_boards = psypnp.ui.getUserInputInt("Number of boards per batch", last_batch_num)
     if num_boards is None:
         return 
     
-    if num_boards < 1 or num_boards > 30:
-        psypnp.ui.showError("Please set a number of boards between 1-30.")
+    psypnp.nv.set_subvalue(ParentKey, LastBatchNumKey, num_boards)
+    if num_boards < 1 or num_boards > 50:
+        psypnp.ui.showError("Please set a number of boards between 1-50.")
         return
+    
+    
     
     try:
         num_associated = mapper.map(num_boards)

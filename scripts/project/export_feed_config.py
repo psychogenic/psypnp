@@ -39,11 +39,41 @@ from org.openpnp.model import Location, Length, LengthUnit
 import psypnp
 import psypnp.nv # non-volatile storage
 import psypnp.feedmap.feedmapper as FeedMapper
-
+import psypnp.ui
+import traceback
 import csv as csv_module
 
 StorageParentName = 'fdrexp'
+ReferenceStringMaxLen = 25
     
+
+def get_selected_boards():
+    # I don't know any other way to get access to the blasted boards
+    boardsList = psypnp.ui.getSelectedBoards()
+    if boardsList is None or not len(boardsList):
+        # psypnp.ui.showError("Select at least one board")
+        return None
+    return boardsList
+
+def get_partreferences_map():
+    boardsList = get_selected_boards()
+    
+    refsMap = dict()
+    if boardsList is None or not len(boardsList):
+        return refsMap
+    
+    for aBoard in boardsList:
+        for aplacement in aBoard.getPlacements():
+            part = aplacement.getPart()
+            if part is None:
+                continue 
+            pid = part.getId()
+            if pid not in refsMap:
+                refsMap[pid] = []
+            
+            refsMap[pid].append(str(aplacement.getId()))
+    
+    return refsMap 
 
 def main():
     
@@ -109,7 +139,9 @@ def generate_csv(feed_info, projname, fname):
         '# type',
         'set#',
         'of',
-        'name',
+        'feed',
+        '#/board',
+        'ref',
         'part',
         'package',
         'pitch',
@@ -129,6 +161,8 @@ def generate_csv(feed_info, projname, fname):
         'refunit',
     ]
     
+    partsRefMap = get_partreferences_map()
+    
     globCountMap = dict()
     with open(fname, 'w') as csvfile:
         csvwriter = csv_module.writer(csvfile, delimiter=',',
@@ -140,22 +174,26 @@ def generate_csv(feed_info, projname, fname):
         
         
         for aFeedInfo in sorted_feedinfo:
-            feedDescriptions.append(gather_columns(aFeedInfo, globCountMap))
+            feedDescriptions.append(
+                gather_columns(aFeedInfo, globCountMap, partsRefMap))
         
         partFeedCountTotalIdx = 2
-        partIdIndex = 4
+        partIdIndex = 6
         feedIdIndex = 3
         sortedFeedDescs = sorted(feedDescriptions, key=lambda x: (x[feedIdIndex], x[partIdIndex]))
         
         dtnow = datetime.datetime.now()
         
-        firstline = ['#', '', '', projname, '%s: %i feeds [(%i,%i) - (%i,%i)]' % (
-            dtnow.strftime("%Y-%m-%d %H:%M:%S"),
-            len(sortedFeedDescs),
-            x_range[0],
-            y_range[0],
-            x_range[1],
-            y_range[1])]
+        firstline = ['#', '', '', projname, 
+            '%s: %i feeds'  % (
+                dtnow.strftime("%Y-%m-%d %H:%M:%S"),
+                len(sortedFeedDescs)),
+            '[(%i,%i) - (%i,%i)]' % (
+                x_range[0],
+                y_range[0],
+                x_range[1],
+                y_range[1])
+        ]
         
         csvwriter.writerow(firstline)
         csvwriter.writerow(hdrs)
@@ -167,7 +205,7 @@ def generate_csv(feed_info, projname, fname):
     return len(feedDescriptions)
             
     
-def gather_columns(aFeedInfo, globCountMap):
+def gather_columns(aFeedInfo, globCountMap, partsRefMap):
     aFeed = aFeedInfo.feed
     refHole = aFeed.getReferenceHoleLocation()
     loc = aFeed.getLocation()
@@ -175,6 +213,17 @@ def gather_columns(aFeedInfo, globCountMap):
     pkg = part.getPackage()
     
     partName = part.getId()
+    numPartsPerBoard = 0
+    if partName in partsRefMap:
+        numPartsPerBoard = len(partsRefMap[partName])
+        ref = ' '.join(partsRefMap[partName])
+        if len(ref) > ReferenceStringMaxLen:
+            ref = ref[:ReferenceStringMaxLen] + '...'
+            
+        
+    else:
+        ref = ''
+        
     # keep a running tab of part, and 
     # use this as the index for the set
     if partName in globCountMap:
@@ -187,6 +236,8 @@ def gather_columns(aFeedInfo, globCountMap):
         globCountMap[partName], # set index e.g. 2 of 4
         -1, # total slots for part, set later
         aFeed.getName(),
+        numPartsPerBoard,
+        ref,
         part.getId(),
         pkg.getId(),
         aFeed.getPartPitch(),
@@ -207,5 +258,7 @@ def gather_columns(aFeedInfo, globCountMap):
     ]
     
     
-    
-main()
+try:
+    main()
+except:
+    print(traceback.format_exc())

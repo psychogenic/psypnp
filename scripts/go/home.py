@@ -40,8 +40,6 @@ from org.openpnp.model import LengthUnit, Location
 from org.openpnp.util import MovableUtils
 from psypnp import should_proceed_with_motion
 
-
-
 def main():
     if should_proceed_with_motion():
         submitUiMachineTask(go_cam)
