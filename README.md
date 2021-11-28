@@ -19,7 +19,10 @@ The scripts include various motion control, configuration scripts that save me t
 
 The modules have facilities for non-volatile information storage, easy use of the GUI to query users and other useful things.
 
-See: [psypnp for OpenPnP](https://inductive-kickback.com/2020/10/psypnp-for-openpnp/) for a complete description and usage guide.
+See:
+  * a [walk-through of a simplified setup](https://youtu.be/75hHtclelN4) thanks to the use of many of the openpnp extension scripts
+
+  * the (soon to be updated) [psypnp for OpenPnP project page](https://inductive-kickback.com/2020/10/psypnp-for-openpnp/) for a complete description and usage guide.
 
 # Installation
 The contents of this project are meant to be house under the OpenPnP configuration directory (the place where it looks for the scripts/ directory for the contents of the Scripts toolbar menu).
