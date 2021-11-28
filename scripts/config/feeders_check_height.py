@@ -46,7 +46,7 @@ DoSubtractPartHeightFromLevel = False
 StorageParentName = 'chkfeedht'
 
 def main():
-    submitUiMachineTask(keepLoopingUntilDone)
+    keepLoopingUntilDone()
     
 def keepLoopingUntilDone():
     shouldContinue = True
@@ -228,7 +228,13 @@ def get_sorted_feeders_list():
     global Sorted_Feeders_List
     if Sorted_Feeders_List is not None:
         return Sorted_Feeders_List
-    Sorted_Feeders_List = psypnp.search.get_sorted_feeders_list()
+    
+    sorted_feeders = psypnp.search.get_sorted_feeders_list()
+    Sorted_Feeders_List = []
+    for aFeeder in sorted_feeders:
+        if aFeeder.isEnabled():
+            Sorted_Feeders_List.append(aFeeder)
+            
     return Sorted_Feeders_List
 
 
@@ -246,10 +252,14 @@ def get_next_feeder_from(startidx):
     if next_feeder_index is None or next_feeder_index >= len(feederList):
         psypnp.ui.showError("out of feeders to check")
         return None
-
-    nxtFeed = feederList[next_feeder_index]
-
-    return nxtFeed
+    while next_feeder_index < len(feederList):
+        nxtFeed = feederList[next_feeder_index]
+        if nxtFeed.isEnabled():
+            return nxtFeed 
+        else:
+            next_feeder_index = get_next_feeder_index(next_feeder_index)
+    
+    return None
 
 
 def get_current_feeder():
@@ -266,6 +276,8 @@ def get_current_feeder():
 
 
 def check_feeder_heights():
+    return check_feeder_heights_motion()
+def check_feeder_heights_motion():
     global StorageParentName
     
     cur_feeder_index = get_current_idx()
@@ -285,15 +297,20 @@ def check_feeder_heights():
     feederPart = curFeed.getPart()
     print("Will move to feeder %i\n%s     \nwith part   \n%s    " % 
             (cur_feeder_index, str(curFeed.getName()), str(feederPart.getId())))
-
+    
+    defHead = machine.defaultHead
+    defNozz = defHead.getDefaultNozzle()
     # always safeZ
-    machine.defaultHead.moveToSafeZ()
+    defHead.moveToSafeZ()
+    psypnp.globals.machineExecuteMotions()
     # we don't want to go straight to the cam location--first XY, 
     # then Z
     feedPickLoc = curFeed.getPickLocation()
     safeMoveLocation = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 0, 45);
-    MovableUtils.moveToLocationAtSafeZ(machine.defaultHead.defaultNozzle, safeMoveLocation)
+    MovableUtils.moveToLocationAtSafeZ(defNozz, safeMoveLocation)
 
+    psypnp.globals.machineExecuteMotions()
+    
     #print("WOULD MOVE FIRST TO: %s" % str(safeMoveLocation))
     
     locDepthZ = feedPickLoc.getZ()
@@ -323,7 +340,10 @@ def check_feeder_heights():
     # our first stage move is the (x,y) "safe" location with safe motion down
     locDownFirstStage = safeMoveLocation.add(locSafeDepth)
     # go there now
-    machine.defaultHead.defaultNozzle.moveTo(locDownFirstStage)
+    defNozz.moveTo(locDownFirstStage)
+    
+    psypnp.globals.machineExecuteMotions()
+    
     #print("NOW MOVE TO: %s" % str(locDownFirstStage))
     
     # now lets slow down
@@ -338,7 +358,9 @@ def check_feeder_heights():
     
     #print("WILL FINALLY MOVE TO: %s" % str(locFinalApproach))
     #print("ORIG FEEDPICK LOC: %s" % str(feedPickLoc))
-    machine.defaultHead.defaultNozzle.moveTo(locFinalApproach)
+    defNozz.moveTo(locFinalApproach)
+    
+    psypnp.globals.machineExecuteMotions()
     machine.setSpeed(curSpeed)
 
     keepShowing = True
@@ -347,19 +369,21 @@ def check_feeder_heights():
                 ['Thrilled!', 'Set Height', 'Up 0.1', 'Down 0.1', 'Up 1', 'Down 1'])
 
         if sel is None:
-            machine.defaultHead.moveToSafeZ()
+            defHead.moveToSafeZ()
+            psypnp.globals.machineExecuteMotions()
             return False
         keepShowing = False
     
         if sel == 0:
             # all good
             increment_idx_counter(cur_feeder_index)
-            machine.defaultHead.moveToSafeZ()
+            defHead.moveToSafeZ()
+            psypnp.globals.machineExecuteMotions()
             return True
         if sel == 1:
             # calculate height based on this
             # take the part height and call the feeder that much lower
-            nozLoc = machine.defaultHead.defaultNozzle.location
+            nozLoc = defNozz.getLocation()
             nozHeight = Length(nozLoc.getZ(), nozLoc.getUnits())
             feederHeight = nozHeight
             if DoSubtractPartHeightFromLevel:
@@ -377,26 +401,31 @@ def check_feeder_heights():
             
             #print("WILL Set ref hole for %s to %s" % (feederPart.getName(), str(newHole)))
             curFeed.setReferenceHoleLocation(newHole)
-            machine.defaultHead.moveToSafeZ()
+            defHead.moveToSafeZ()
+            psypnp.globals.machineExecuteMotions()
             increment_idx_counter(cur_feeder_index)
             return True
         if sel == 2: # Up 0.1
             feedPickLoc = feedPickLoc.add(Location(LengthUnit.Millimeters, 0, 0, 0.1, 0))
-            machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
+            defNozz.moveTo(feedPickLoc)
+            psypnp.globals.machineExecuteMotions(defNozz)
             
             
             keepShowing = True
         if sel == 3: # Down 0.1
             feedPickLoc = feedPickLoc.subtract(Location(LengthUnit.Millimeters, 0, 0, 0.1, 0))
-            machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
+            defNozz.moveTo(feedPickLoc)
+            psypnp.globals.machineExecuteMotions(defNozz)
             keepShowing = True
         if sel == 4: # Up 1
             feedPickLoc = feedPickLoc.add(Location(LengthUnit.Millimeters, 0, 0, 1, 0))
-            machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
+            defNozz.moveTo(feedPickLoc)
+            psypnp.globals.machineExecuteMotions(defNozz)
             keepShowing = True
         if sel == 5: # Down 1
             feedPickLoc = feedPickLoc.subtract(Location(LengthUnit.Millimeters, 0, 0, 1, 0))
-            machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
+            defNozz.moveTo(feedPickLoc)
+            psypnp.globals.machineExecuteMotions(defNozz)
             keepShowing = True
 
     
