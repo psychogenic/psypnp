@@ -15,6 +15,13 @@ says we're good to go.
 '''
 
 ############## BOILER PLATE #################
+
+# submitUiMachineTask should be used for all code that interacts
+# with the machine. It guarantees that operations happen in the
+# correct order, and that the user is presented with a dialog
+# if there is an error.
+from org.openpnp.util.UiUtils import submitUiMachineTask
+
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
@@ -32,6 +39,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 
 #from __future__ import absolute_import, division
 
+from org.openpnp.util import MovableUtils
 from org.openpnp.model import LengthUnit, Location
 
 import psypnp 
@@ -42,32 +50,43 @@ import psypnp.ui
 
 def main():
     if psypnp.should_proceed_with_motion():
-        go_cam()
+        submitUiMachineTask(go_cam)
 
 
 
 def go_cam():
-    loc = get_coords()
+    
+    
+    if machine.defaultHead is None:
+        # too weird
+        return # should error
+    
+    defNozz = machine.defaultHead.getDefaultNozzle()
+    if defNozz is None:
+        return # should error
+    
+    
+    loc = get_coords(defNozz)
     if loc is None:
         # cancel
         return
-    machine.defaultHead.moveToSafeZ()
-    machine.defaultHead.defaultNozzle.moveTo(loc)
+    MovableUtils.moveToLocationAtSafeZ(defNozz, loc)
 
 
-def get_coords():
-    noz = machine.defaultHead.defaultNozzle
-    curloc = noz.location
-    xval = psypnp.ui.getUserInputFloat("X", curloc.x)
+def get_coords(nozz):
+    curloc = nozz.location
+    xval = psypnp.ui.getUserInputFloat("X", curloc.getX())
     if xval is None:
         # cancel
         return None
-    yval = psypnp.ui.getUserInputFloat("Y", curloc.y)
+    yval = psypnp.ui.getUserInputFloat("Y", curloc.getY())
     if yval is None:
         # cancel
         return None
 
-    location = Location(LengthUnit.Millimeters, xval, yval, 0, 0);
+    location = Location(LengthUnit.Millimeters, xval, yval, curloc.getZ(), 
+                        curloc.getRotation());
+                        
     return location
 
 main()

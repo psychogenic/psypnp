@@ -16,6 +16,14 @@ says we're good to go.
 '''
 
 ############## BOILER PLATE #################
+
+# submitUiMachineTask should be used for all code that interacts
+# with the machine. It guarantees that operations happen in the
+# correct order, and that the user is presented with a dialog
+# if there is an error.
+from org.openpnp.util.UiUtils import submitUiMachineTask
+
+
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
@@ -30,32 +38,42 @@ psypnp.globals.setup(machine, config, scripting, gui)
 ############## /BOILER PLATE #################
 
 #from __future__ import absolute_import, division
-
+from org.openpnp.util import MovableUtils
 from org.openpnp.model import LengthUnit, Location
+from org.openpnp.model.Motion import MotionOption
 import psypnp
 import psypnp.ui
 
 
+
+
 def main():
     if psypnp.should_proceed_with_motion():
-        go_cam()
+        submitUiMachineTask(go_nozz)
 
 
-def go_cam():
-    loc = get_coords()
+def go_nozz():
+    
+    if machine.defaultHead is None:
+        # too weird
+        return # should error
+    
+    defNozz = machine.defaultHead.getDefaultNozzle()
+    if defNozz is None:
+        return # should error
+    
+    loc = get_coords(defNozz)
     if loc is None:
         # cancel
         return
-    if machine.defaultHead is None or machine.defaultHead.defaultCamera is None:
-        return
+        
+    MovableUtils.moveToLocationAtSafeZ(defNozz, loc)
+    #machine.defaultHead.moveToSafeZ()
+    # machine.defaultHead.defaultCamera.moveTo(loc)
 
-    machine.defaultHead.moveToSafeZ()
-    machine.defaultHead.defaultCamera.moveTo(loc)
 
-
-def get_coords():
-    cam = machine.defaultHead.defaultCamera
-    curloc = cam.location
+def get_coords(nozz):
+    curloc = nozz.location
     xval = psypnp.ui.getUserInputFloat("X", 0)
     if xval is None:
         # cancel

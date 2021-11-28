@@ -15,6 +15,11 @@ says we're good to go.
 '''
 
 ############## BOILER PLATE #################
+# submitUiMachineTask should be used for all code that interacts
+# with the machine. It guarantees that operations happen in the
+# correct order, and that the user is presented with a dialog
+# if there is an error.
+from org.openpnp.util.UiUtils import submitUiMachineTask
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
@@ -29,7 +34,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 ############## /BOILER PLATE #################
 
 from org.openpnp.model import LengthUnit, Location
-
+from org.openpnp.util import MovableUtils
 import psypnp 
 import psypnp.ui
 
@@ -45,7 +50,7 @@ HardLimitMax = 0
 
 def main():
     if psypnp.should_proceed_with_motion():
-        go_z()
+        submitUiMachineTask(go_z)
 
 def go_z():
     nozzle = machine.defaultHead.defaultNozzle
@@ -61,5 +66,6 @@ def go_z():
             str(HardLimitMax)))
     else:
         loc = Location(LengthUnit.Millimeters, curloc.x, curloc.y, zval, 0);
-        nozzle.moveTo(loc)
+        #nozzle.moveTo(loc)
+        MovableUtils.moveToLocationAtSafeZ(nozzle, loc)
 main()

@@ -13,6 +13,11 @@ in turn, allowing you to validate and/or modify feeder level.
 '''
 
 ############## BOILER PLATE #################
+# submitUiMachineTask should be used for all code that interacts
+# with the machine. It guarantees that operations happen in the
+# correct order, and that the user is presented with a dialog
+# if there is an error.
+from org.openpnp.util.UiUtils import submitUiMachineTask
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
@@ -28,6 +33,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 
 
 from org.openpnp.model import Location, Length, LengthUnit 
+from org.openpnp.util import MovableUtils
 
 import psypnp
 import psypnp.nv # non-volatile storage
@@ -40,6 +46,9 @@ DoSubtractPartHeightFromLevel = False
 StorageParentName = 'chkfeedht'
 
 def main():
+    submitUiMachineTask(keepLoopingUntilDone)
+    
+def keepLoopingUntilDone():
     shouldContinue = True
     while shouldContinue:
         shouldContinue = main_selection()
@@ -283,7 +292,8 @@ def check_feeder_heights():
     # then Z
     feedPickLoc = curFeed.getPickLocation()
     safeMoveLocation = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 0, 45);
-    machine.defaultHead.defaultNozzle.moveTo(safeMoveLocation)
+    MovableUtils.moveToLocationAtSafeZ(machine.defaultHead.defaultNozzle, safeMoveLocation)
+
     #print("WOULD MOVE FIRST TO: %s" % str(safeMoveLocation))
     
     locDepthZ = feedPickLoc.getZ()
@@ -373,6 +383,8 @@ def check_feeder_heights():
         if sel == 2: # Up 0.1
             feedPickLoc = feedPickLoc.add(Location(LengthUnit.Millimeters, 0, 0, 0.1, 0))
             machine.defaultHead.defaultNozzle.moveTo(feedPickLoc)
+            
+            
             keepShowing = True
         if sel == 3: # Down 0.1
             feedPickLoc = feedPickLoc.subtract(Location(LengthUnit.Millimeters, 0, 0, 0.1, 0))

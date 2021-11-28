@@ -16,6 +16,12 @@ says we're good to go.
 '''
 
 ############## BOILER PLATE #################
+# submitUiMachineTask should be used for all code that interacts
+# with the machine. It guarantees that operations happen in the
+# correct order, and that the user is presented with a dialog
+# if there is an error.
+from org.openpnp.util.UiUtils import submitUiMachineTask
+
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
@@ -32,6 +38,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 
 #from __future__ import absolute_import, division
 
+from org.openpnp.util import MovableUtils
 from org.openpnp.model import Location
 import psypnp
 
@@ -39,7 +46,7 @@ import psypnp
 
 def main():
     if psypnp.should_proceed_with_motion():
-        go_to_bottom()
+        submitUiMachineTask(go_to_bottom)
 
 
 
@@ -48,26 +55,31 @@ def go_to_bottom():
     if botcamloc is None:
         # cancel
         return
-    # always safeZ
-    machine.defaultHead.moveToSafeZ()
+    noz = machine.getDefaultHead().getDefaultNozzle()
+    if noz is None:
+        return # should error
+    
+    
     # we don't want to go straight to the cam location--first XY, 
     # then Z
     safeMoveLocation = Location(botcamloc.getUnits(), botcamloc.getX(), botcamloc.getY(), 0, 0);
-    machine.defaultHead.defaultNozzle.moveTo(safeMoveLocation)
+    
+    MovableUtils.moveToLocationAtSafeZ(noz, safeMoveLocation)
+    
+    #machine.defaultHead.defaultNozzle.moveTo(safeMoveLocation)
     # our default z will be whatever the camera says
-    noz = machine.getDefaultHead().getDefaultNozzle()
     finalLocation = botcamloc.add(Location(botcamloc.getUnits(), 0,0, botcamloc.getZ(), 0))
-    if noz is not None:
-        ntip = noz.getNozzleTip()
-        if ntip is not None:
-            ntipcalib = ntip.getCalibration()
-            if ntipcalib is not None and ntipcalib.isEnabled():
-                zoffset = ntipcalib.getCalibrationZOffset()
-                if zoffset is not None:
-                    finalLocation = botcamloc.add(Location(zoffset.getUnits(), 0, 0, zoffset.getValue(), 0))
+    ntip = noz.getNozzleTip()
+    if ntip is not None:
+        ntipcalib = ntip.getCalibration()
+        if ntipcalib is not None and ntipcalib.isEnabled():
+            zoffset = ntipcalib.getCalibrationZOffset()
+            if zoffset is not None:
+                finalLocation = botcamloc.add(Location(zoffset.getUnits(), 0, 0, zoffset.getValue(), 0))
 
-    #print("WOULD LIKE TO MOVE TO %s" % str(finalLocation))
-    machine.defaultHead.defaultNozzle.moveTo(finalLocation)
+#print("WOULD LIKE TO MOVE TO %s" % str(finalLocation))
+
+    MovableUtils.moveToLocationAtSafeZ(noz, finalLocation)
 
 
 def get_coords():

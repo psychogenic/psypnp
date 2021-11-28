@@ -20,6 +20,11 @@ script.
 '''
 
 ############## BOILER PLATE #################
+# submitUiMachineTask should be used for all code that interacts
+# with the machine. It guarantees that operations happen in the
+# correct order, and that the user is presented with a dialog
+# if there is an error.
+from org.openpnp.util.UiUtils import submitUiMachineTask
 # boiler plate to get access to psypnp modules, outside scripts/ dir
 import os.path
 import sys
@@ -35,6 +40,7 @@ psypnp.globals.setup(machine, config, scripting, gui)
 
 
 from org.openpnp.model import LengthUnit, Location
+from org.openpnp.util import MovableUtils
 
 import psypnp
 import psypnp.nv
@@ -44,7 +50,7 @@ import psypnp.config.storagekeys
 
 def main():
     if psypnp.should_proceed_with_motion():
-        go_cam()
+        submitUiMachineTask(go_cam)
 
 
 def go_cam():
@@ -55,8 +61,7 @@ def go_cam():
     if machine.defaultHead is None or machine.defaultHead.defaultCamera is None:
         return
 
-    machine.defaultHead.moveToSafeZ()
-    machine.defaultHead.defaultCamera.moveTo(loc)
+    MovableUtils.moveToLocationAtSafeZ(machine.defaultHead.defaultCamera, loc)
 
 
 def get_coords():
