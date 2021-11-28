@@ -2,7 +2,7 @@
 
 psypnp -- useful scripts for [OpenPnP](https://openpnp.org/) and a library of Python support modules to roll your own
 
-Copyright (C) 2019-2020 Pat Deegan, [https://psychogenic.com/](https://psychogenic.com/)
+Copyright (C) 2019-2021 Pat Deegan, [https://psychogenic.com/](https://psychogenic.com/)
 
 Released under the terms of the *GPL v3* (see LICENSE file for details).
 
@@ -14,6 +14,19 @@ This package comes with two sets of components:
 
   * some [utility scripts](https://inductive-kickback.com/2020/10/psypnp-for-openpnp/#scripts) to control an OpenPnP pick & place machine
   * a set of [Python modules](https://inductive-kickback.com/2020/10/psypnp-for-openpnp/#psypnp-modules) that are used by the above scripts that can help you write powerful scripts of your own, easily
+
+With this package you can work more efficiently with OpenPnP, for instance by using the auto-setup system to configure feeds for the project
+
+![Auto-Setup](https://github.com/psychogenic/psypnp/blob/demoimg/images/autosetupscrn.png?raw=true)
+
+then generate a map of the layout
+
+![Generate Feed map](https://github.com/psychogenic/psypnp/blob/demoimg/images/feeds_map.png?raw=true)
+
+move the set of part feeds around until satisfied and export a CSV of the configuration for ease of layout
+
+![Feed export CSV](https://github.com/psychogenic/psypnp/blob/demoimg/images/feedsetup_exports.png?raw=true)
+
 
 The scripts include various motion control, configuration scripts that save me tons of clicking, a visualizer that shows you feed arrangement graphically through a generated SVG image, a useful REPL terminal, and more.
 
