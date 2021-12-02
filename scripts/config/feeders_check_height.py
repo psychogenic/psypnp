@@ -32,6 +32,8 @@ psypnp.globals.setup(machine, config, scripting, gui)
 ############## /BOILER PLATE #################
 
 
+
+
 from org.openpnp.model import Location, Length, LengthUnit 
 from org.openpnp.util import MovableUtils
 
@@ -39,8 +41,11 @@ import psypnp
 import psypnp.nv # non-volatile storage
 import psypnp.search
 
+
+# config
 MinSaneHeightAbs = 5.0
 DoSubtractPartHeightFromLevel = False
+SafeZDownSpeedFactor = 0.4  # slow-down for final z approach
 
 
 StorageParentName = 'chkfeedht'
@@ -300,66 +305,65 @@ def check_feeder_heights_motion():
     
     defHead = machine.defaultHead
     defNozz = defHead.getDefaultNozzle()
-    # always safeZ
-    defHead.moveToSafeZ()
-    psypnp.globals.machineExecuteMotions()
-    # we don't want to go straight to the cam location--first XY, 
+    
+    # we don't want to go straight to the location--first XY, 
     # then Z
+    
+    defHead.moveToSafeZ() # we move to safe z and will stay there
+    psypnp.globals.machineExecuteMotions()
+    curNozzLocation = defNozz.getLocation()
+    
+    
+    # feedPickLoc is our final target
     feedPickLoc = curFeed.getPickLocation()
-    safeMoveLocation = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 0, 45);
-    MovableUtils.moveToLocationAtSafeZ(defNozz, safeMoveLocation)
+    
+    # since we're at safe z now, we move to pick location but at current noz height
+    safeMoveLocation = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 
+                                curNozzLocation.getZ(), feedPickLoc.getRotation());
+    MovableUtils.moveToLocationAtSafeZ(defNozz, safeMoveLocation) # and use this in any case
 
+    # go...
     psypnp.globals.machineExecuteMotions()
     
-    #print("WOULD MOVE FIRST TO: %s" % str(safeMoveLocation))
-    
+    # final z-depth
     locDepthZ = feedPickLoc.getZ()
     if MinSaneHeightAbs > abs(locDepthZ):
         print("Something weird with this feed -- height is %s" % str(locDepthZ))
         psypnp.ui.showError("Feeder height is strange: %s" % curFeed.getId())
         return False
     
-    # length "down" to bottom of feed pick location, e.g. -35.00
-    locDepthZLength = Length(locDepthZ, feedPickLoc.getUnits())
     
-    # height of part, this is how much above the bottom of the feed pick 
-    # location openpnp will travel before picking up
-    partHeight = feederPart.getHeight()
     
-    actualDepthZTravelled = locDepthZLength
-    if DoSubtractPartHeightFromLevel:
-        print("Removing part height from travel depth")
-        actualDepthZTravelled = locDepthZLength.add(partHeight)
     
-    # target location "real" depth openpnp will travel (as Location object)
-    locRealDepth = Location(feedPickLoc.getUnits(), 0, 0, actualDepthZTravelled.getValue(), 0)
+    # first part down delta -- final depth + some sanity
+    fastTravelDownFirstStage = Location(feedPickLoc.getUnits(), 
+                                        feedPickLoc.getX(), 
+                                        feedPickLoc.getY(), 
+                                        feedPickLoc.getZ() + MinSaneHeightAbs, 
+                                        feedPickLoc.getRotation())
     
-    # safe depth to travel to, basically real location depth + MinSaneHeightAbs (mm)
-    locSafeDepth = locRealDepth.add(Location(LengthUnit.Millimeters, 0, 0, MinSaneHeightAbs, 45))
-    
-    # our first stage move is the (x,y) "safe" location with safe motion down
-    locDownFirstStage = safeMoveLocation.add(locSafeDepth)
-    # go there now
-    defNozz.moveTo(locDownFirstStage)
-    
+    defNozz.moveTo(fastTravelDownFirstStage)
     psypnp.globals.machineExecuteMotions()
     
-    #print("NOW MOVE TO: %s" % str(locDownFirstStage))
+    actualDepthZTravel = feedPickLoc.getZ()
+    if DoSubtractPartHeightFromLevel:
+        print("Removing part height from travel depth")
+        partHeight = feederPart.getHeight()
+        actualDepthZTravel = actualDepthZTravel.add(partHeight)
+        
+    
+    finalLocationSecondStage = Location(feedPickLoc.getUnits(), 
+                                        feedPickLoc.getX(), 
+                                        feedPickLoc.getY(), 
+                                        actualDepthZTravel, 
+                                        feedPickLoc.getRotation())
+    
     
     # now lets slow down
     curSpeed = machine.getSpeed()
-    machine.setSpeed(0.25)
+    machine.setSpeed(SafeZDownSpeedFactor)
     
-    #locFinalApproach = safeMoveLocation.add(locRealDepth)
-    #locFinalApproach = feedPickLoc.subtract(locRealDepth)Location(feedPickLoc.getUnits(), 0, 0, actualDepthZTravelled.getValue(), 0)
-    locFinalApproach = Location(feedPickLoc.getUnits(), feedPickLoc.getX(), feedPickLoc.getY(), 
-                                actualDepthZTravelled.getValue(), feedPickLoc.getRotation())
-    
-    
-    #print("WILL FINALLY MOVE TO: %s" % str(locFinalApproach))
-    #print("ORIG FEEDPICK LOC: %s" % str(feedPickLoc))
-    defNozz.moveTo(locFinalApproach)
-    
+    defNozz.moveTo(finalLocationSecondStage)
     psypnp.globals.machineExecuteMotions()
     machine.setSpeed(curSpeed)
 
