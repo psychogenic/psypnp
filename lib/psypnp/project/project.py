@@ -15,8 +15,11 @@ class Project:
         self.name = bom_filename
         if name is not None: 
             self.name = name 
+        
+        psypnp.debug.out.buffer("Project creating partmap")
             
         self.part_map = PartMap(bom_filename,BOMParserType)
+        psypnp.debug.out.buffer("Partmap created")
         
         self.part_map_ok = self.part_map.map()
         if not self.part_map_ok:

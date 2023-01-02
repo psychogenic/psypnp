@@ -43,10 +43,12 @@ import psypnp.feedmap.feedmapper as FeedMapper
 
 
 SVGWriteImported = True
+SVGWriteImportError = ''
 try:
     import svgwrite
     import math
-except:
+except Exception as e:
+    SVGWriteImportError = str(e)
     SVGWriteImported = False
     
 
@@ -71,7 +73,7 @@ ArrowColour = 'darkcyan'
 def main():
     
     if not SVGWriteImported:
-        psypnp.showMessage("Could not import svgwrite lib, aborting")
+        psypnp.showMessage("Could not import svgwrite lib, aborting\n%s" % SVGWriteImportError)
         return
     
     lastProjName = psypnp.nv.get_subvalue(StorageParentName, 'projname')
@@ -219,7 +221,7 @@ def generate_feed(dwg, aFeed, x_realoffset, y_realoffset, imgdimX, imgdimY):
     
     arrlines = None
     if len(arrowpoints):
-    	arrlines = dwg.add(dwg.g(id='arrow-%i' % aFeed.fid, stroke_width=2, stroke=ArrowColour))
+        arrlines = dwg.add(dwg.g(id='arrow-%i' % aFeed.fid, stroke_width=2, stroke=ArrowColour))
         lastPoint = None
         for aPoint in arrowpoints:
             if lastPoint:

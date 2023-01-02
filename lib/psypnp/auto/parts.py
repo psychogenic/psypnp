@@ -58,7 +58,10 @@ class PartMap:
     MinPercentageForSuccess = 49.0
     
     def __init__(self, bom_filename, BOMParserType):
+
+        psypnp.debug.out.buffer("PartMap c'tor, creating BOM CSV")
         self.bom_csv = psypnp.csv_file.BOMCSV(bom_filename, BOMParserType)
+        psypnp.debug.out.flush("CSV parsed")
     
     
         self._parts_map = dict()
@@ -80,7 +83,11 @@ class PartMap:
     def map(self):
         psypnp.debug.out.buffer("Parts map() called:")
         for apart in psypnp.globals.config().getParts():
-            psypnp.debug.out.buffer("%s, " % str(apart.getId()))
+            try:
+                psypnp.debug.out.buffer("%s, " % str(apart.getId()))
+            except Exception as e:
+                psypnp.debug.out.flush("Woah, weird part ID %s" % str(e))
+
             self._parts_map[apart.getId()] = apart
         
         psypnp.debug.out.flush("All parts loaded, checking CSV...")

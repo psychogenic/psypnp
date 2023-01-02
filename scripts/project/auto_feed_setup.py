@@ -123,8 +123,8 @@ def auto_setup():
     try:
         # Create a PROJECT based on BOM
         proj = psypnp.project.project.Project(bom_csv, SelectedBOMParserType)
-    except:
-        psypnp.ui.showError("Failed loading project")
+    except Exception as e:
+        psypnp.ui.showError("Failed loading project %s" % str(e))
         return
     
     print(str(proj.part_map))

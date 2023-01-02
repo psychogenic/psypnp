@@ -227,7 +227,10 @@ def setBottomVisionTo(forPartsList, setTo=None):
             else: 
                 psetting = not targSettings.isEnabled()
             
-            print("Set bot vis for %s to %s" % (str(apart.getId()), str(psetting)))
+            try:
+                print("Set bot vis for %s to %s" % (str(apart.getId()), str(psetting)))
+            except:
+                pass
             
             targSettings.setEnabled(psetting)
             
