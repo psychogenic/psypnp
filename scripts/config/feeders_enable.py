@@ -52,7 +52,7 @@ def main():
                               'Operation to perform on all feeders',
                               ['Enable', 'Disable', 'Cancel'], 'Cancel')
     
-    if sel is None or sel < 0 or sel == 3:
+    if sel is None or sel < 0 or sel == 2:
         return 
     
     doEnable = False
