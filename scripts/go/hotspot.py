@@ -90,7 +90,7 @@ def main():
     
     
     val = psypnp.ui.getOption("Hotspots", 
-                "Select action",
+                "Select action for location 'hotspots'",
                 options)
 
     if val is None or val == 0:
