@@ -221,6 +221,10 @@ class FeedDescRow:
         if aPackage is None or not hasattr(aPackage, 'pitch'):
             return 0
         
+        if self.length < 1:
+            psypnp.debug.out.buffer('Feed description length 0: assuming reel (10k parts held)')
+            return 10e3
+        
         return int(self.length / aPackage.pitch)
     
             
@@ -236,7 +240,7 @@ class FeedDescRow:
 class FeedDescCSV:
     ''' 
        Feeds available description CSV.  Expecting format
-       # Feedname,    width (mm),    length (mm)
+       # Feedname,    width (mm),    length (mm), ENABLED, comment
        
        where "feedname" is to be some matchable substring of system feed names, e.g.
         8mm
@@ -247,6 +251,7 @@ class FeedDescCSV:
     '''
     def __init__(self, filepath, delimiter=',', 
                  ignoreCommentedFirstLine=True):
+        psypnp.debug.out.buffer('Opening feed desc file %s' % filepath)
         self.csv = CSVFile(filepath, delimiter, ignoreCommentedFirstLine)
         
         self.feeds = dict()
@@ -287,6 +292,8 @@ class FeedDescCSV:
             else:
                 psypnp.debug.out.buffer('Have feed desc %s but is DISABLED. Skip.'
                                          % aFeed.name);
+                                         
+        psypnp.debug.out.flush()
             
     def findFor(self, aPackage):
         availableFeeds = []

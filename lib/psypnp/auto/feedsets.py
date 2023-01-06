@@ -19,6 +19,7 @@ class FeedInfo:
         self.package_description = None
         self.feed_description = None
         self.associated_part_maxcapacity = 0
+        self.leave_unmodified = False # do not overwrite part association
         
         
     def moveTo(self, otherFeedInfo):
@@ -51,7 +52,12 @@ class FeedInfo:
         
     
     def available(self):
+        if self.leave_unmodified:
+            return False
         return self.associated_part is None
+    
+    def isEnabled(self):
+        return self.feed.isEnabled()
         
     def holdsUpTo(self, aPackageDesc):
         if self.feed_description is None:
@@ -72,6 +78,9 @@ class FeedInfo:
         self.associated_part = aPartInfo
         self.package_description = packageDesc
         self.associated_part_maxcapacity = self.holdsUpTo(packageDesc)
+        
+    def getCurrentMachineFeedAssociatedPart(self):
+        return self.feed.getPart()
     def __string__(self):
         return '%s (%s @ %s)' % (self.name, self.feed, str(self.distance_from_centroid))
     
@@ -287,11 +296,11 @@ class FeedSet:
         
         return 0 
             
-    def findNearestAvailableFeed(self):
+    def findNearestAvailableFeed(self, restrictToEnabledFeeds=False):
         # psypnp.debug.out.buffer("findNearestAvailableFeed for %s..." % str(self))
         min_dist_feed = None
         for finfo in self.feeds:
-            if finfo.available():
+            if finfo.available() and ((not restrictToEnabledFeeds) or finfo.isEnabled()):
                 #psypnp.debug.out.buffer("%s avail!" % finfo.name)
                 if min_dist_feed is None or finfo.distance_from_centroid < min_dist_feed.distance_from_centroid:
                     min_dist_feed = finfo
@@ -305,8 +314,9 @@ class FeedSet:
         i = startingAt + 1
         while i < self.numEntries():
             if not self.feeds[i].available():
-                # this is it
-                return self.feeds[i]
+                # this may be it
+                if not self.feeds[i].leave_unmodified:
+                    return self.feeds[i]
             i += 1
         
         return None 

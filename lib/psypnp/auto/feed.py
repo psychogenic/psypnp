@@ -13,7 +13,7 @@ import psypnp.csv_file
 import psypnp.debug
 
 from org.openpnp.model import Location
-from org.openpnp.machine.reference.feeder import ReferenceStripFeeder
+from org.openpnp.machine.reference.feeder import ReferenceStripFeeder, ReferencePushPullFeeder
 from psypnp.auto.feedsets import FeedSet, SystemFeeds
 
 
@@ -33,12 +33,17 @@ def feed_type_supported(aFeed):
         return False
     c = aFeed.getClass()
     
-    # only supporting strip feeders at this point.
-    return c == ReferenceStripFeeder
+    # only supporting strip and push-pull feeders at this point.
+    if c == ReferenceStripFeeder:
+        return True
+    if c == ReferencePushPullFeeder:
+        return True 
+    return False 
 
 def get_feed_location(aFeed):
     ''' 
         @note: currently only supports things that have getReferenceHoleLocation()
+               or getHole1Location
         @return: a Location for this feed, used for distance calculations.
     '''
     # idea here is to abstract this function in a way
@@ -46,6 +51,9 @@ def get_feed_location(aFeed):
     
     if hasattr(aFeed, 'getReferenceHoleLocation'):
         return aFeed.getReferenceHoleLocation()
+    
+    if hasattr(aFeed, 'getHole1Location'):
+        return aFeed.getHole1Location()
     
     return None
 
@@ -92,9 +100,10 @@ def feeds_by_distance():
     distList = []
     for aFeed in psypnp.globals.machine().getFeeders():
         #print(str(aFeed))
-        if aFeed and feed_type_supported(aFeed) and hasattr(aFeed, 'getReferenceHoleLocation'):
-            loc = aFeed.getReferenceHoleLocation()
-            distList.append(  (aFeed, centroid.getLinearDistanceTo(loc) ) )
+        if aFeed and feed_type_supported(aFeed):
+            loc = get_feed_location(aFeed)
+            if loc is not None:
+                distList.append(  (aFeed, centroid.getLinearDistanceTo(loc) ) )
             
     sList = sorted(distList, key=lambda tup: tup[1])
     return sList

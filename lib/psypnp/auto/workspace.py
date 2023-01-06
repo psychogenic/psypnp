@@ -8,6 +8,7 @@ Part of the psypnp OpenPnP scripting modules project
 
 '''
 import psypnp.debug 
+import psypnp.user_config as user_prefs
 import math
 
 class FeedSelectionDetails:
@@ -54,9 +55,13 @@ class WorkspaceMapper:
         # re-map the workspace object(s) for simple access
         self.feed_sets = wspace.feeds.sets 
         self.num_unplaced = 0
-        self.allow_part_spreading = True # allow a part to be spread amongst multiple feed sets
+        self.allow_part_spreading = user_prefs.autofeedsetup_allow_part_spreading # allow a part to be spread amongst multiple feed sets
         self.verbose_debug = True # this is a toughy, so more debug with this true
-        
+        self.map_parts_to_preset_feeders = user_prefs.autofeedsetup_map_parts_to_preset_feeders # if a part is used in proj, and already mapped to feeder, leave it be 
+        self.leave_already_assoc_feeds_untouched = user_prefs.autofeedsetup_leave_already_assoc_feeds_untouched # leave all non "fiducial" or "home" feeders untouched
+        self.restrict_to_enabled_feeders = user_prefs.autofeedsetup_restrict_to_enabled_feeders # only use feeders manually enabled
+    
+    
     def numUnassociated(self):
         return self.num_unplaced
                     
@@ -88,7 +93,9 @@ class WorkspaceMapper:
         numPrefSets = 0 # keep track of if _any_ sets already prefer this type
         feedsetSelDetails = []
         for feedSet in self.feed_sets.entries():
-            closestFeedInThisSet = feedSet.findNearestAvailableFeed()
+            closestFeedInThisSet = feedSet.findNearestAvailableFeed(self.restrict_to_enabled_feeders)
+            if closestFeedInThisSet is None:
+                continue
             # only count sets that actually have space for us
             numSlotsTaken = feedSet.numFeedsFor(inqty, 
                                                 projPart.package_description)
@@ -343,7 +350,6 @@ class WorkspaceMapper:
             num_boards worth of parts.
             
         '''
-        
         if not self.isReady():
             psypnp.debug.out.flush("Not READY to map()")
             return 
@@ -353,7 +359,80 @@ class WorkspaceMapper:
         self.num_unplaced = 0
         
         num_associated = 0 # counter for number of feeds we ate up 
-        for apart in part_map.parts:
+        
+        
+        # for drag/push-pull reel type feeders, we don't want to move everything around
+        # all the time
+        # in these cases, assuming map_parts_to_preset_feeders is True we will
+        #  - go through all the parts
+        #  - go through all the feedset feeders
+        #  - if a feeder has this part setup, we do the association here to this 
+        #    existing feeder, and move on
+        
+        partsLeftToMap = []
+        if not self.map_parts_to_preset_feeders:
+            partsLeftToMap = part_map.parts # all parts un-mapped to feeders so far
+        else:
+            psypnp.debug.out.buffer('Want to leave current part assocs untouched... searching')
+            for projPart in part_map.parts:
+                partWasSetup = False
+                for feedset in self.feed_sets.entries():
+                    if partWasSetup:
+                        continue 
+                    for feeder in feedset.entries():
+                        if partWasSetup:
+                            continue
+                        curPart = feeder.getCurrentMachineFeedAssociatedPart()
+                        if curPart is not None:
+                            if curPart == projPart.part:
+                                psypnp.debug.out.buffer("Found part %s already in feeder" % str(projPart))
+                                partWasSetup = True 
+                                
+                                # apart.quantity() * num_boards
+                                feeder.setPart(projPart, projPart.package_description)
+                                num_associated += 1
+                                continue
+                if not partWasSetup:
+                    psypnp.debug.out.flush('Part not yet mapped %s' % str(projPart))
+                    partsLeftToMap.append(projPart)
+                       
+        # again, for push-pull/drag reels, we don't want to muck about.  If I have a 
+        # 5k resistor in there, and want to leave it there, I set
+        #  leave_already_assoc_feeds_untouched and any feeder with a part who's name
+        #  does _not_ include "fiduc" or "home" will be preserved
+        if self.leave_already_assoc_feeds_untouched:
+            # psypnp.debug.out.buffer('Checking for enabled feeders to leave un-touched')
+            for feedset in self.feed_sets.entries():
+                for feeder in feedset.entries():
+                    # psypnp.debug.out.buffer("Feeder %s" % feeder)
+                    if not feeder.available():
+                        # already busy, we're good
+                        psypnp.debug.out.flush("already unavail")
+                        continue
+                    
+                    curPart = feeder.getCurrentMachineFeedAssociatedPart()
+                    if curPart is None:
+                        # no part, we're fine
+                        # psypnp.debug.out.flush('no part within')
+                        continue 
+                    
+                    pName = curPart.getId()
+                    if pName is None or not len(pName):
+                        psypnp.debug.out.flush('no part id for %s' % curPart)
+                        continue 
+                    
+                    pName = pName.lower()
+                    
+                    # psypnp.debug.out.flush("Have part in feeder %s" % pName)
+                    
+                    if pName.find('fiduc') >= 0 or pName.find('home') >=0:
+                        continue 
+                    psypnp.debug.out.buffer("Forcing leave-unmodified on feeder %s" % str((feeder)))
+                    feeder.leave_unmodified = True 
+                
+            
+        
+        for apart in partsLeftToMap:
             #psypnp.debug.out.crumb('map')
             psypnp.debug.out.buffer("Attempting to map part %s" % str(apart))
             if apart.package_description is None:

@@ -45,6 +45,7 @@ class Workspace:
     def _findFeedNameInMap(self, fname, feedDescNameMap):
         
         for feedDescName in feedDescNameMap:
+            psypnp.debug.out.flush("CHECK FDESCNAME %s" % feedDescName)
             if fname.find(feedDescName) >= 0:
                 return feedDescNameMap[feedDescName]
         
@@ -63,6 +64,7 @@ class Workspace:
         for feedDesc in self.feed_descriptions.entries():
             feedDescNameMap[feedDesc.name] = feedDesc
             
+        psypnp.debug.out.flush(str(feedDescNameMap))
         
         feedDistMap = dict()
         for feed_dist_tuple in self.feeds.by_distance_list:
@@ -81,6 +83,7 @@ class Workspace:
                 feedDesc = self._findFeedNameInMap(feedInfo.name, feedDescNameMap)
                 if feedDesc is None:
                     psypnp.debug.out.flush('Could not find description for feed %s' % feedInfo.name)
+                    
                     toRemove.append([feedSet, feedInfo])
                 else:
                     feedInfo.feed_description = feedDesc

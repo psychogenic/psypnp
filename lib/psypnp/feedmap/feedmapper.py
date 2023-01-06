@@ -56,6 +56,11 @@ class StripFeedInfo(FeedInfo):
         FeedInfo.__init__(self, feedObj, 'strip', name, loc, travelX, travelY, part, disabled)
     
         
+        
+class PushPullFeedInfo(FeedInfo):
+    def __init__(self, feedObj, name, loc, travelX, travelY, part, disabled=False):
+        FeedInfo.__init__(self, feedObj, 'pushpull', name, loc, travelX, travelY, part, disabled)
+    
 
 class FeedMapper:
         
@@ -130,7 +135,9 @@ class FeedMapper:
         return tFeed
         
         
-    
+    def process_feed_pushpull(self, aFeed):
+        return PushPullFeedInfo(aFeed, aFeed.getName(),
+                                aFeed.getLocation(), -1, 0, aFeed.getPart())
         
     def process_feed_strip(self, aFeed):
         idealLines = aFeed.idealLineLocations
@@ -153,8 +160,19 @@ class FeedMapper:
     def process_feed(self, aFeed):
         #if hasattr(aFeed, 'trayCountX'):
         #    return self.process_feed_tray(aFeed)
+        
+        
+        if hasattr(aFeed, 'toString'):
+            asStr = aFeed.toString() 
+            if asStr.find('Strip') >= 0:
+                return self.process_feed_strip(aFeed)
+            if asStr.find('PushPull') >= 0:
+                return self.process_feed_pushpull(aFeed)
+            
+            
         if hasattr(aFeed, 'idealLineLocations'):
             return self.process_feed_strip(aFeed)
+            
         else:
             print("Unsupported feed type\n")
             
