@@ -34,6 +34,9 @@ from org.openpnp.model import Location, Length, LengthUnit
 
 import psypnp
 import psypnp.ui
+import psypnp.debug
+
+import psypnp.user_config as user_prefs
 
 
 def main():
@@ -46,9 +49,29 @@ def main():
     if selPart is None:
         return 
     
+    leaveUntouchedFeeds = dict()
+    if user_prefs.feeders_reset_skiplist is not None and len(user_prefs.feeders_reset_skiplist):
+        for feedname in user_prefs.feeders_reset_skiplist:
+            psypnp.debug.out.buffer('Found %s in feeder reset skiplist\n' % feedname)
+            leaveUntouchedFeeds[feedname] = True
+    
+    
+    numSkipped = 0
     for aFeed in allFeeds:
-        aFeed.setPart(selPart)
-        aFeed.setEnabled(False) 
+        fname = aFeed.getName()
+        if fname in leaveUntouchedFeeds:
+            psypnp.debug.out.flush('Skipping %s' % fname)
+            numSkipped += 1
+        else:
+            psypnp.debug.out.buffer('Resetting part for %s\n' % fname)
+            aFeed.setPart(selPart)
+            aFeed.setEnabled(False) 
+            
+            
+    if numSkipped:
+        psypnp.ui.showMessage('Feeder parts reset (but %i in skiplist, left untouched)' % numSkipped)
+    
+    psypnp.debug.out.flush("reset done for all.")
     
         
     
