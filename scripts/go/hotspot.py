@@ -44,6 +44,7 @@ from org.openpnp.model import LengthUnit, Location
 from org.openpnp.util import MovableUtils
 import psypnp.ui
 import psypnp.debug
+import psypnp.user_config as user_prefs
 from psypnp import should_proceed_with_motion
 
 
@@ -121,7 +122,7 @@ def main():
     if should_proceed_with_motion():
        submitUiMachineTask(go_cam)
     
-    return False
+    return user_prefs.gohotspots_loopuntilcancel
 
 def delete_hotspot():
     
