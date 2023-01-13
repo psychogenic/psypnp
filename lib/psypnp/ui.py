@@ -20,10 +20,16 @@ import psypnp.globals
 
 def showError(msg, title=None):
     print("ERROR: %s" % str(msg))
-    optPane.showMessageDialog(None, msg)
+    if title is not None:
+        optPane.showMessageDialog(None, msg, title, optPane.ERROR_MESSAGE)
+    else:
+        optPane.showMessageDialog(None, msg, "Error", optPane.ERROR_MESSAGE)
 
 def showMessage(msg, title=None):
-    optPane.showMessageDialog(None, msg)
+    if title is not None:
+        optPane.showMessageDialog(None, msg, title)
+    else:
+        optPane.showMessageDialog(None, msg)
 
 
 def getUserInput(msg, defaultValue=''):
@@ -58,7 +64,7 @@ def getOption(title, message, options, optDefault=None):
         optDefault = options[0]
 
     val = optPane.showOptionDialog(None, message, title,
-                optPane.DEFAULT_OPTION, optPane.INFORMATION_MESSAGE, None, 
+                optPane.DEFAULT_OPTION, optPane.QUESTION_MESSAGE, None, 
                 options, optDefault);
     return val 
 
