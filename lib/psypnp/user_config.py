@@ -3,9 +3,10 @@
 # config feeders
 
 # list any names of feeders to always leave untouched in reset part, e.g. permanent reels
+# partial matches work, so '8mmTopLeft_12' will only skip #12 but 
+# '8mmTopLeft_' which match all 8mmTopLeft_12 and any other 8mmTopLeft_XX
 feeders_reset_skiplist = [
-    'ExampleReelLeft8mm_01',
-    'ExampleReelLeft8mm_02'
+    'ReelLeft8mm_',
     ] 
 
 
