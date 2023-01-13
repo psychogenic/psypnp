@@ -38,6 +38,40 @@ import psypnp.debug
 
 import psypnp.user_config as user_prefs
 
+AllowPartialNameMatchInSkipList = True
+
+def shouldSkipFeeder(feedername):
+    global AllowPartialNameMatchInSkipList
+
+    if feedername is None or not len(feedername):
+        psypnp.debug.out.buffer('No feedername, which is quite odd\n')
+        return False
+
+    if user_prefs.feeders_reset_skiplist is None or not len(user_prefs.feeders_reset_skiplist):
+        # psypnp.debug.out.buffer('feeders_reset_skiplist is empty (checking %s)\n' % feedername)
+        return False
+
+    try:
+        idx = user_prefs.feeders_reset_skiplist.index(feedername)
+        if idx >= 0:
+            # psypnp.debug.out.flush('skiplist contains "%s", exactly.\n' % feedername)
+            return True
+    except ValueError:
+        # not here at all
+        pass
+
+    if not AllowPartialNameMatchInSkipList:
+        # psypnp.debug.out.flush('No exact match for "%s", and AllowPartialNameMatchInSkipList False.\n' % feedername)
+        return False
+
+    # must check partials
+    for partialName in user_prefs.feeders_reset_skiplist:
+        # psypnp.debug.out.buffer('Checking "%s" for %s...\n' % (feedername, partialName))
+        if feedername.find(partialName) >= 0:
+            # psypnp.debug.out.flush('Found! Skip.\n')
+            return True
+
+    return False
 
 def main():
     if not feeders_reset_proceed():
@@ -49,17 +83,10 @@ def main():
     if selPart is None:
         return 
     
-    leaveUntouchedFeeds = dict()
-    if user_prefs.feeders_reset_skiplist is not None and len(user_prefs.feeders_reset_skiplist):
-        for feedname in user_prefs.feeders_reset_skiplist:
-            psypnp.debug.out.buffer('Found %s in feeder reset skiplist\n' % feedname)
-            leaveUntouchedFeeds[feedname] = True
-    
-    
     numSkipped = 0
     for aFeed in allFeeds:
         fname = aFeed.getName()
-        if fname in leaveUntouchedFeeds:
+        if shouldSkipFeeder(fname):
             psypnp.debug.out.flush('Skipping %s' % fname)
             numSkipped += 1
         else:
