@@ -22,7 +22,12 @@ REPL.
 To avoid just getting stuck, by default the code asks for a confirmation
 before proceeding.  This can be super annoying while coding, so just
 disable it with 
-  RequestConfirmationOnEveryLaunch
+  
+  
+  
+  
+  
+  
 below.
 
 NOTE2: AutoHideGUI is useful if you want to auto-switch back to
@@ -34,7 +39,7 @@ want to add directories to python path (see extendSysPath() below)
 '''
 
 # Make certain user knows what's up before launching:
-RequestConfirmationOnEveryLaunch = True
+RequestConfirmationOnEveryLaunch = False
 
 # Auto-hide the GUI while terminal is running
 # (useful for fast task switching)
@@ -46,6 +51,8 @@ import os.path
 import sys
 import code
 import logging
+import threading
+
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
 
@@ -165,5 +172,7 @@ def runInterpreter(extraVars=None):
 
 
 # do it! 
-runInterpreter()
+# runInterpreter()
+runTimeThread = threading.Thread(target = runInterpreter)
+runTimeThread.start()
 
