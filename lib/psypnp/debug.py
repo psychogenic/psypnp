@@ -91,9 +91,9 @@ class DebugOut:
     def buffer(self, msg, autoEnter=True):
         
         if autoEnter:
-            self.outbuf += msg + "\n"
+            self.outbuf += str(msg) + "\n"
         else:
-            self.outbuf += msg
+            self.outbuf += str(msg)
             
         if self.forceAutoFlush or len(self.outbuf) >= self.maxlinelen:
             self.flush()
