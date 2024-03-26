@@ -40,6 +40,7 @@ import psypnp
 import psypnp.nv # non-volatile storage
 import psypnp.feedmap.feedmapper as FeedMapper
 import psypnp.ui
+import psypnp.debug
 import traceback
 import csv as csv_module
 
@@ -85,7 +86,20 @@ def main():
     if lastFileName is None:
         lastFileName = 'feed_map.csv'
     
-    fmap = FeedMapper.FeedMapper()
+    
+    sel = psypnp.getOption('Feeders Included', 'Include feeds', 
+                           ['Only Enabled', 'All'])
+    
+    if sel is None:
+        # aborted
+        return 
+    onlyEnabled = False
+    if sel == 0:
+        onlyEnabled = True 
+    
+    
+    fmap = FeedMapper.FeedMapper(onlyEnabled)
+    
     feed_info = fmap.map()
     if feed_info is None or not len(feed_info):
         psypnp.showMessage("No enabled feeds to export")
@@ -108,8 +122,17 @@ def generate_csv(feed_info, projname, fname):
     x_range = [10000, -10000] # arbitrary large 'invalid' values
     y_range = [10000, -10000]
     
+    
+    headersByType = {
+            'strip': getHeadersStrip,
+            'pushpull': getHeadersPushPull,
+    }
+    
     # first, figure out span of image
+    psypnp.debug.out.flush("Generating CSVs for feeds:")
     for aFeed in feed_info:
+        psypnp.debug.out.buffer(str(aFeed))
+        psypnp.debug.out.buffer(', ')
         x = aFeed.location.getX()
         y = aFeed.location.getY()
         if x < x_range[0]:
@@ -121,13 +144,14 @@ def generate_csv(feed_info, projname, fname):
         if y > y_range[1]:
             y_range[1] = y
     
+    psypnp.debug.out.flush()
     # int-ify
     for i in range(0,2):
         x_range[i] = int(x_range[i])
         y_range[i] = int(y_range[i])
     
             
-    print("RANGE: %i,%i - %i,%i" % (
+    psypnp.debug.out.flush("RANGE: %i,%i - %i,%i" % (
             x_range[0],
             y_range[0],
             x_range[1],
@@ -135,45 +159,23 @@ def generate_csv(feed_info, projname, fname):
 
     feedDescriptions = []
     
-    hdrs = [
-        '# type',
-        'set#',
-        'of',
-        'feed',
-        '#/board',
-        'ref',
-        'part',
-        'package',
-        'pitch',
-        'tape',
-        'feedcount',
-        'retry',
-        'max',
-        'locx',
-        'locy',
-        'locz',
-        'locrot',
-        'locunit',
-        'refx',
-        'refy',
-        'refz',
-        'refrot',
-        'refunit',
-    ]
-    
     partsRefMap = get_partreferences_map()
     
     globCountMap = dict()
+    feedTypes = dict()
     with open(fname, 'w') as csvfile:
+        psypnp.debug.out.flush('Opened file %s' % fname)
         csvwriter = csv_module.writer(csvfile, delimiter=',',
                             quotechar='"', quoting=csv_module.QUOTE_MINIMAL)
         
         
         
-        sorted_feedinfo = sorted(feed_info, key=lambda x: (x.part.getId(), x.feed.getName()))
+        # sorted_feedinfo = sorted(feed_info, key=lambda x: (x.part.getId(), x.feed.getName()))
+        sorted_feedinfo = sorted(feed_info, key=lambda x: x.feed.getName())
         
         
         for aFeedInfo in sorted_feedinfo:
+            feedTypes[aFeedInfo.type] = True
             feedDescriptions.append(
                 gather_columns(aFeedInfo, globCountMap, partsRefMap))
         
@@ -196,19 +198,227 @@ def generate_csv(feed_info, projname, fname):
         ]
         
         csvwriter.writerow(firstline)
-        csvwriter.writerow(hdrs)
+        for ft in feedTypes.keys():
+            if ft in headersByType:
+                csvwriter.writerow(headersByType[ft]())
+        
         for f in sortedFeedDescs:
             f[partFeedCountTotalIdx] = globCountMap[f[partIdIndex]]
             csvwriter.writerow(f)
+            psypnp.debug.out.flush(str(f))
         
     
     return len(feedDescriptions)
             
+            
+def getHeadersCommon():
+    hdrs = [
+        '# type',
+        'set#',
+        'of',
+        'feed',
+        '#/board',
+        'ref',
+        'part',
+        'package',
+        'part pitch',
+        'feedcount',
+        'retry'
+    ]
+    return hdrs
+
+def getHeadersStrip():
+    hdrs = getHeadersCommon()
+    additionalStrip = [
+        'holepitch',
+        'max',
+        'tapetype',
+        'tapewidth',
+        'locx',
+        'locy',
+        'locz',
+        'locrot',
+        'locunit',
+        'refx',
+        'refy',
+        'refz',
+        'refrot',
+        'refunit'
+    ]
+    hdrs.extend(additionalStrip)
+    hdrs[0] = '# STRIP'
+    return hdrs
+
+def getHeadersPushPull():
+    
+    hdrs = getHeadersCommon()
+    additionalPushPull = [
+        'feedpitch',
+        'rotinfeeder',
+        'startx',
+        'starty',
+        'startz',
+        'startrot',
+        'startunit',
+        'mid1x',
+        'mid1y',
+        'mid1z',
+        'mid1rot',
+        'mid1unit',
+        'mid2x',
+        'mid2y',
+        'mid2z',
+        'mid2rot',
+        'mid2unit',
+        'mid3x',
+        'mid3y',
+        'mid3z',
+        'mid3rot',
+        'mid3unit',
+        'endx',
+        'endy',
+        'endz',
+        'endrot',
+        'endunit',
+        'deltax',
+        'deltay',
+        'speedpull0',
+        'speedpull1',
+        'speedpull2',
+        'speedpull3',
+        'speedpush1',
+        'speedpush2',
+        'speedpush3',
+        'speedpushend',
+        'incmulti0',
+        'incmulti1',
+        'incmulti2',
+        'incmulti3',
+        'incmultiend',
+        
+        'incpull0',
+        'incpull1',
+        'incpull2',
+        'incpull3',
+        
+        'incpush1',
+        'incpush2',
+        'incpush3',
+        'incpushend',
+        
+    ]
+    hdrs.extend(additionalPushPull)
+    hdrs[0] = '# PUSHPULL'
+    return hdrs
+    
+
+def getCoordinatesFor(someLocation=None):
+    if someLocation is None:
+        return ['', '','','', '']
+    
+    retList = [
+        someLocation.getX(),
+        someLocation.getY(),
+        someLocation.getZ(),
+        someLocation.getRotation(),
+        someLocation.getUnits().getShortName()
+    ]
+    return retList
+    
+def append_coordinates(aLocation, to_cols):
+    to_cols.extend(getCoordinatesFor(aLocation))
+    
+def append_columns_pushpull(aFeed, to_cols):
+    
+    addenda = [
+        aFeed.getFeedPitch().getValue(),
+        aFeed.getRotationInFeeder()
+    ]
+    
+    locations = [
+        aFeed.getFeedStartLocation(),
+        aFeed.getFeedMid1Location(),
+        aFeed.getFeedMid2Location(),
+        aFeed.getFeedMid3Location(),
+        aFeed.getFeedEndLocation()
+        
+    ]
+    speeds = [
+                                                                        
+        aFeed.getFeedSpeedPull0(),                                                                
+        aFeed.getFeedSpeedPull1(),                                                                
+        aFeed.getFeedSpeedPull2(),                                                            
+        aFeed.getFeedSpeedPull3(),                                                            
+        aFeed.getFeedSpeedPush1(),                                                           
+        aFeed.getFeedSpeedPush2(),                                                          
+        aFeed.getFeedSpeedPush3(),                                                          
+        aFeed.getFeedSpeedPushEnd(), 
+    ]
+    
+    included = [
+                                                                           
+        aFeed.isIncludedMulti0(),                                                    
+        aFeed.isIncludedMulti1(),                                                  
+        aFeed.isIncludedMulti2(),                                                 
+        aFeed.isIncludedMulti3(),                                                
+        aFeed.isIncludedMultiEnd(),                                              
+        aFeed.isIncludedPull0(),                                              
+        aFeed.isIncludedPull1(),                                              
+        aFeed.isIncludedPull2(),                                             
+        aFeed.isIncludedPull3(),                                             
+        aFeed.isIncludedPush1(),                                             
+        aFeed.isIncludedPush2(),                                            
+        aFeed.isIncludedPush3(),                                            
+        aFeed.isIncludedPushEnd()
+        
+        ]
+    
+    for loc in locations:
+          append_coordinates(loc, addenda)
+          
+    deltax = []
+    deltay = []
+    for i in range(1, len(locations)):
+        lb = locations[i]
+        la = locations[i-1]
+        deltax.append(str(lb.getX() - la.getX()))
+        deltay.append(str(lb.getY() - la.getY()))
+        
+    addenda.append(' '.join(deltax))
+    addenda.append(' '.join(deltay))
+        
+    
+    addenda.extend(speeds)
+    addenda.extend(included)
+    to_cols.extend(addenda)
+
+def append_columns_strip(aFeed, to_cols):
+    
+    addenda = [
+        
+        aFeed.getHolePitch().getValue(),
+        aFeed.getMaxFeedCount(),
+        aFeed.getTapeType().toString(),
+        aFeed.getTapeWidth().getValue()
+    ]
+    
+    append_coordinates(aFeed.getReferenceHoleLocation(), addenda)
+    
+    to_cols.extend(addenda)
+
+        
     
 def gather_columns(aFeedInfo, globCountMap, partsRefMap):
+    
+    extraProcessorsByType = {
+            'strip': append_columns_strip,
+            'pushpull': append_columns_pushpull,
+    }
+    
+    
     aFeed = aFeedInfo.feed
-    refHole = aFeed.getReferenceHoleLocation()
-    loc = aFeed.getLocation()
+    
+    #loc = aFeed.getLocation()
     part = aFeedInfo.part 
     pkg = part.getPackage()
     
@@ -230,9 +440,10 @@ def gather_columns(aFeedInfo, globCountMap, partsRefMap):
         globCountMap[partName] += 1
     else:
         globCountMap[partName] = 1
-        
-    return [
-        aFeedInfo.type,
+    
+    feedType = aFeedInfo.type
+    cols =  [
+        feedType,
         globCountMap[partName], # set index e.g. 2 of 4
         -1, # total slots for part, set later
         aFeed.getName(),
@@ -241,22 +452,19 @@ def gather_columns(aFeedInfo, globCountMap, partsRefMap):
         part.getId(),
         pkg.getId(),
         aFeed.getPartPitch(),
-        aFeed.getTapeType().toString(),
         aFeed.getFeedCount(),
         aFeed.getFeedRetryCount(),
-        aFeed.getMaxFeedCount(),
-        loc.getX(),
-        loc.getY(),
-        loc.getZ(),
-        loc.getRotation(),
-        loc.getUnits().getShortName(),
-        refHole.getX(),
-        refHole.getY(),
-        refHole.getZ(),
-        refHole.getRotation(),
-        refHole.getUnits().getShortName(),
+        
     ]
     
+    
+    feederLocation = getCoordinatesFor(aFeed.getLocation())
+    
+    if feedType in extraProcessorsByType:
+        addFunc = extraProcessorsByType[feedType]
+        addFunc(aFeed, cols)
+
+    return cols
     
 try:
     main()
