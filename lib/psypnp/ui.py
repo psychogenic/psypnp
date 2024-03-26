@@ -17,6 +17,7 @@ except:
     from psypnp.debug import stubOptPane as optPane 
 
 import psypnp.globals
+from org.openpnp.model import Location
 
 def showError(msg, title=None):
     print("ERROR: %s" % str(msg))
@@ -32,11 +33,17 @@ def showMessage(msg, title=None):
         optPane.showMessageDialog(None, msg)
 
 
-def getUserInput(msg, defaultValue=''):
+def getUserInput(msg, defaultValue='', title=None):
+    # can't figure out how to set both title and default value, durp.
+    # screw it.
+    #if False and title is not None:
+    #    return optPane.showInputDialog(None, msg, title, optPane.ERROR_MESSAGE)
+    #else:
     return optPane.showInputDialog(msg, defaultValue)
 
-def getUserInputInt(msg, defaultValue=0):
-    v = getUserInput(msg, str(defaultValue))
+
+def getUserInputInt(msg, defaultValue=0, title=None):
+    v = getUserInput(msg, str(defaultValue), title)
     if v is None:
         return None 
     try:
@@ -46,8 +53,8 @@ def getUserInputInt(msg, defaultValue=0):
     
     return v
 
-def getUserInputFloat(msg, defaultValue=0):
-    v = getUserInput(msg, str(defaultValue))
+def getUserInputFloat(msg, defaultValue=0, title=None):
+    v = getUserInput(msg, str(defaultValue), title)
     if v is None:
         return None 
     try:
@@ -111,3 +118,48 @@ def getSelectedFeeders():
             
     return feedersList
         
+        
+
+def requestXYCoordinatesUsingLocationDefault(curLocation, promptPrefix=''):
+    # request X and Y, setting defaults based on location
+    xprompt = '%s X' % promptPrefix
+    xval = getUserInputFloat(xprompt, defaultValue=curLocation.getX(), title=xprompt)
+    if xval is None:
+        # cancel
+        return None
+    
+    yprompt = '%s Y' % promptPrefix
+    yval = getUserInputFloat(yprompt, defaultValue=curLocation.getY(), title=yprompt )
+    if yval is None:
+        # cancel
+        return None
+
+    location = Location(curLocation.getUnits(), xval, yval, curLocation.getZ(), 
+                        curLocation.getRotation());
+                        
+    return location
+
+
+
+def requestXYCoordinatesUsingMovableObject(baseonOnMovableObject, promptPrefix=''):
+    curloc = baseonOnMovableObject.getLocation()
+    return requestXYCoordinatesUsingLocationDefault(curloc, promptPrefix)
+
+
+
+def requestXYCoordinatesRelativeToMovableObject(baseonOnMovableObject, promptPrefix='Relative'):
+    curLocation = baseonOnMovableObject.getLocation()
+    xprompt = '%s X' % promptPrefix
+    xval = getUserInputFloat(xprompt, defaultValue=0.0, title=xprompt)
+    if xval is None:
+        # cancel
+        return None
+    
+    yprompt = '%s Y' % promptPrefix
+    yval = getUserInputFloat(yprompt, defaultValue=0.0, title=yprompt )
+    if yval is None:
+        # cancel
+        return None
+    
+    newLocation = curLocation.add(Location(curLocation.getUnits(), xval, yval, 0, 0))
+    return newLocation
