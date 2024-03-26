@@ -64,7 +64,8 @@ class PushPullFeedInfo(FeedInfo):
 
 class FeedMapper:
         
-    def __init__(self):
+    def __init__(self, onlyEnabled=True):
+        self.include_only_enabled = onlyEnabled
         self.include_disabled_of_samepart = False
         self.feedInfoList = []
         
@@ -80,8 +81,9 @@ class FeedMapper:
         while next_feeder_index < len(feederList):
             nxtFeed = None
             while next_feeder_index < len(feederList) and nxtFeed is None:
-                if feederList[next_feeder_index].isEnabled() and feederList[next_feeder_index].getPart() is not None:
-                    nxtFeed = feederList[next_feeder_index]
+                if feederList[next_feeder_index].isEnabled() or not self.include_only_enabled:
+                    if feederList[next_feeder_index].getPart() is not None:
+                        nxtFeed = feederList[next_feeder_index]
                 next_feeder_index += 1
                 
             if nxtFeed is not None:
