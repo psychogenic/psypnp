@@ -50,43 +50,29 @@ import psypnp.ui
 
 def main():
     if psypnp.should_proceed_with_motion():
-        submitUiMachineTask(go_cam)
+        submitUiMachineTask(go_noz)
 
 
-
-def go_cam():
-    
-    
-    if machine.defaultHead is None:
+def go_noz():
+    if machine.getDefaultHead() is None:
         # too weird
-        return # should error
+        psypnp.ui.showError("No default head??")
+        return False
     
-    defNozz = machine.defaultHead.getDefaultNozzle()
+    defNozz = machine.getDefaultHead().getDefaultNozzle()
     if defNozz is None:
-        return # should error
+        psypnp.ui.showError("No default nozz??")
+        return False
     
-    
-    loc = get_coords(defNozz)
+        
+    loc = psypnp.ui.requestXYCoordinatesUsingMovableObject(defNozz, 'Absolute')
     if loc is None:
         # cancel
-        return
+        return False 
+    
     MovableUtils.moveToLocationAtSafeZ(defNozz, loc)
+    return True
 
 
-def get_coords(nozz):
-    curloc = nozz.location
-    xval = psypnp.ui.getUserInputFloat("X", curloc.getX())
-    if xval is None:
-        # cancel
-        return None
-    yval = psypnp.ui.getUserInputFloat("Y", curloc.getY())
-    if yval is None:
-        # cancel
-        return None
-
-    location = Location(LengthUnit.Millimeters, xval, yval, curloc.getZ(), 
-                        curloc.getRotation());
-                        
-    return location
 
 main()

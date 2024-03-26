@@ -54,46 +54,24 @@ def main():
 
 def go_nozz():
     
-    if machine.defaultHead is None:
+    if machine.getDefaultHead() is None:
         # too weird
-        return # should error
+        psypnp.ui.showError("No default head??")
+        return False
     
-    defNozz = machine.defaultHead.getDefaultNozzle()
+    defNozz = machine.getDefaultHead().getDefaultNozzle()
     if defNozz is None:
-        return # should error
-    
-    loc = get_coords(defNozz)
+        psypnp.ui.showError("No default nozz??")
+        return False
+        
+    loc = psypnp.ui.requestXYCoordinatesRelativeToMovableObject(defNozz, 'Relative')
     if loc is None:
         # cancel
-        return
-        
+        return False 
+    
     MovableUtils.moveToLocationAtSafeZ(defNozz, loc)
-    #machine.defaultHead.moveToSafeZ()
-    # machine.defaultHead.defaultCamera.moveTo(loc)
+    return True
 
 
-def get_coords(nozz):
-    curloc = nozz.location
-    xval = psypnp.ui.getUserInputFloat("X", 0)
-    if xval is None:
-        # cancel
-        return None
-    yval = psypnp.ui.getUserInputFloat("Y", 0)
-    if yval is None:
-        # cancel
-        return None
-    try:
-        xval = float(xval)
-    except:
-        xval = 0
-
-    try:
-        yval = float(yval)
-    except:
-        yval = 0
-
-
-    location = curloc.add(Location(LengthUnit.Millimeters, xval, yval, 0, 0))
-    return location
 
 main()
